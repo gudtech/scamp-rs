@@ -1,6 +1,8 @@
 [package]
-name = "scamp-rs"
+name = "scamp"
 version = "0.1.0"
 authors = ["Daniel Norman <daniel@danielnorman.net>"]
+edition = "2018"
 
 [dependencies]
+futures = "0.1.26"
