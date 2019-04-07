@@ -1,3 +1,6 @@
+pub mod message;
+pub mod agent;
+
 #[cfg(test)]
 mod tests {
     #[test]
