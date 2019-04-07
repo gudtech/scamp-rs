@@ -1,12 +1,17 @@
 use crate::message::Message;
+use crate::transport::Transport;
+use crate::error::Error;
+
+use tokio::runtime::Runtime;
 
 pub struct Agent {
-    discovery: Option<>
+    transports: Vec<Transport>,
+    runtime: Runtime
+    //discovery:
 }
 
 impl Agent {
-    pub fn new (){
-
+    pub fn new () {
 //        if (argp.opt('pidfile'))
 //        fs.writeFileSync(argp.opt('pidfile'), process.pid);
 //
@@ -66,4 +71,43 @@ impl Agent {
 //        me.cookedHandler(() => { return { queue_depth: me._activeRequests - 1 } })
 //        );
     }
+    pub fn registerAction<F> (&mut self, name: String, f: F) -> Result<(),Error>
+    where F: Fn(Message) -> () {
+
+        self.bindTransport()?;
+
+        // TODO actually register the action
+        let _ = name;
+        let _ = f;
+
+        Ok(())
+
+    }
+
+    pub fn bindTransport (&mut self) -> Result<(), Error> {
+
+        //TODO: make it search for the right kind of transport
+        if self.transports.len() > 0{
+            return Ok(());
+        }
+
+        let transport = Transport::new( self )?;
+        self.transports.push(transport);
+
+        Ok(())
+    }
+
+    pub fn tokio_runtime (&mut self) -> Runtime {
+
+        match self.runtime{
+            Some(rt) => rt,
+            None     => {
+                let mut rt = Runtime::new();
+                self.runtime = Some(rt);
+                rt
+            }
+        }
+
+    }
+
 }
