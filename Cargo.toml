@@ -6,3 +6,5 @@ edition = "2018"
 
 [dependencies]
 futures = "0.1.26"
+tokio = {version = "0.1.15", features = ["async-await-preview"]}
+rand = "0.6.5"
