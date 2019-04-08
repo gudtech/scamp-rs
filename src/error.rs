@@ -1,4 +1,5 @@
 
+#[derive(Debug)]
 pub struct Error{
     e: std::io::Error
 }
