@@ -1,13 +1,12 @@
-use futures::Future;
+//use futures::Future;
 use futures::stream::Stream;
 use crate::packet::Packet;
 
 pub struct Message {
-
 }
 
 impl Message {
-    pub fn readAll (&self) -> Future<Item=(),Error=()> {
+    pub async fn readAll (&self) -> () {
         unimplemented!()
 //        let acc = [];
 //        this.on('data', (d) => acc.push(d));

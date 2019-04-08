@@ -1,17 +1,29 @@
 use crate::message::Message;
 use crate::transport::Transport;
 use crate::error::Error;
+use std::collections::HashMap;
+
+use futures::{future, Async, Future, IntoFuture, Poll};
 
 use tokio::runtime::Runtime;
 
 pub struct Agent {
     transports: Vec<Transport>,
-    runtime: Runtime
+    runtime: Option<Runtime>,
+    actions: HashMap<String,Box<Fn(Message) -> IntoFuture>>
     //discovery:
 }
 
 impl Agent {
-    pub fn new () {
+    pub fn new () -> Result<Self,Error>{
+
+        let me = Agent{
+            transports: Vec::new(),
+            runtime: None,
+            actions: HashMap::new()
+        };
+
+        Ok(me)
 //        if (argp.opt('pidfile'))
 //        fs.writeFileSync(argp.opt('pidfile'), process.pid);
 //
@@ -71,20 +83,29 @@ impl Agent {
 //        me.cookedHandler(() => { return { queue_depth: me._activeRequests - 1 } })
 //        );
     }
-    pub fn registerAction<F> (&mut self, name: String, f: F) -> Result<(),Error>
-    where F: Fn(Message) -> () {
+    pub fn registerAction<F> (&mut self, name: &str, handler: F) -> Result<(),Error>
+    where F: Fn(Message) -> Result<(),Error> {
+
+        println!("registerAction {}", name);
 
         self.bindTransport()?;
 
-        // TODO actually register the action
-        let _ = name;
-        let _ = f;
+        //TODO - do something nicer if the same action is registered twice
+        self.actions.insert(name.to_owned(), Box::new(handler));
 
         Ok(())
 
     }
 
-    pub fn bindTransport (&mut self) -> Result<(), Error> {
+    pub async fn callAction(&mut self, name: &str) -> Result<(),Error> {
+        if let Some(handler) = self.actions.get(name ){
+            await!(handler())
+        }else{
+            Err(std::io::Error::new(std::io::ErrorKind::NotFound,"Action Not Found").into())
+        }
+    }
+
+    fn bindTransport (&mut self) -> Result<(), Error> {
 
         //TODO: make it search for the right kind of transport
         if self.transports.len() > 0{
@@ -97,14 +118,14 @@ impl Agent {
         Ok(())
     }
 
-    pub fn tokio_runtime (&mut self) -> Runtime {
+    pub fn tokio_runtime (&mut self) -> Result<&mut Runtime,Error> {
 
-        match self.runtime{
-            Some(rt) => rt,
+        match self.runtime {
+            Some(ref mut rt) => Ok(rt),
             None     => {
-                let mut rt = Runtime::new();
+                let rt = Runtime::new()?;
                 self.runtime = Some(rt);
-                rt
+                Ok(self.runtime.as_mut().unwrap())
             }
         }
 
