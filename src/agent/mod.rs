@@ -10,7 +10,7 @@ use tokio::runtime::Runtime;
 pub struct Agent {
     transports: Vec<Transport>,
     runtime: Option<Runtime>,
-    actions: HashMap<String,Box<Fn(Message) -> IntoFuture>>
+    actions: HashMap<String,Box<Fn(Message) -> IntoFuture(Item=(),>>
     //discovery:
 }
 
@@ -50,7 +50,7 @@ impl Agent {
 //        me.announcer.setClasses( me._classes );
 //
 //        me._activeRequests = 0;
-//        me.server  = soa.server('beepish').create({
+//        me.listener  = soa.listener('beepish').create({
 //            callback: me.handleRequest.bind(me),
 //            key: key,
 //            cert: crt,
@@ -58,7 +58,7 @@ impl Agent {
 //                me.announcer.addAddress(iface, uri);
 //            }
 //        });
-//        me.announcer.on('made_packet', (pkt) => me.server.putSubdata('announce', '', pkt));
+//        me.announcer.on('made_packet', (pkt) => me.listener.putSubdata('announce', '', pkt));
 //
 //        if (params.handleSignals !== false) {
 //            var stop_and_exit = () => {

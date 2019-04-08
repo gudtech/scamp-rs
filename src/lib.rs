@@ -1,3 +1,6 @@
+
+#![allow(dead_code)]
+
 // The nightly features that are commonly needed with async / await
 #![feature(await_macro, async_await, futures_api)]
 //
@@ -21,6 +24,7 @@ pub mod message;
 pub mod agent;
 pub mod transport;
 pub mod error;
+mod common;
 
 pub use crate::message::Message;
 pub use crate::agent::Agent;
