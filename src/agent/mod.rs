@@ -11,7 +11,7 @@ use tokio::runtime::Runtime;
 pub struct Agent {
     transports: Vec<Transport>,
     runtime: Option<Runtime>,
-    actions: HashMap<String,Box<Action>>
+    actions: HashMap<String,Action>
     //discovery:
 }
 
@@ -84,7 +84,7 @@ impl Agent {
 //        me.cookedHandler(() => { return { queue_depth: me._activeRequests - 1 } })
 //        );
     }
-    pub fn registerAction<F> (&mut self, action: Box<Action>) -> Result<(),Error> {
+    pub fn register_action (&mut self, action: Action) -> Result<(),Error> {
         println!("registerAction {}", action.name);
 
 //        self.bindTransport()?;
@@ -96,13 +96,16 @@ impl Agent {
 
     }
 
-    pub fn callAction(&mut self, name: &str, message: Message) -> Box<Future<Item=Message,Error=Error>> {
+    pub fn find_action(&mut self, name: &str ) -> Result<&Action,Error> {
         if let Some(action) = self.actions.get(name ){
-            action.call(message)
+            Ok(action)
         }else{
-            Box::new(future::err(std::io::Error::new(std::io::ErrorKind::NotFound,"Action Not Found").into() ))
+            Err(std::io::Error::new(std::io::ErrorKind::NotFound,"Action Not Found").into())
         }
     }
+//    pub async fn call_action_async(&mut self, name: &str, message: Message) -> Result<Message,Error> {
+//        Ok(Message::empty())
+//    }
 
 //    fn bindTransport (&mut self) -> Result<(), Error> {
 //

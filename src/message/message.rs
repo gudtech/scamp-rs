@@ -66,10 +66,10 @@ impl Message {
     /// # Example
     ///
     /// ```
-    /// use scamp::{Message, Request};
+    /// use scamp::Message;
     ///
     /// // create a `GET /` request
-    /// let get = Request::new(Message::empty());
+    /// let get = Message::empty();
     /// ```
     #[inline]
     pub fn empty() -> Message {
@@ -101,26 +101,26 @@ impl Message {
 //        (tx, rx)
 //    }
 
-    /// Wrap a futures `Stream` in a box inside `Message`.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # extern crate futures;
-    /// # extern crate scamp;
-    /// # use scamp::Message;
-    /// # fn main() {
-    /// let chunks = vec![
-    ///     "hello",
-    ///     " ",
-    ///     "world",
-    /// ];
-    ///
-    /// let stream = futures::stream::iter_ok::<_, ::std::io::Error>(chunks);
-    ///
-    /// let body = Message::wrap_stream(stream);
-    /// # }
-    /// ```
+//    /// Wrap a futures `Stream` in a box inside `Message`.
+//    ///
+//    /// # Example
+//    ///
+//    /// ```
+//    /// # extern crate futures;
+//    /// # extern crate scamp;
+//    /// # use scamp::Message;
+//    /// # fn main() {
+//    /// let chunks = vec![
+//    ///     "hello",
+//    ///     " ",
+//    ///     "world",
+//    /// ];
+//    ///
+//    /// let stream = futures::stream::iter_ok::<_, ::std::io::Error>(chunks);
+//    ///
+//    /// let body = Message::wrap_stream(stream);
+//    /// # }
+//    /// ```
 //    pub fn wrap_stream<S>(stream: S) -> Message
 //        where
 //            S: Stream + Send + 'static,
