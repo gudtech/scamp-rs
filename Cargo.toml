@@ -6,7 +6,8 @@ edition = "2018"
 
 [dependencies]
 futures = "0.1.26"
-tokio = {version = "0.1.15", optional = true, features = ["async-await-preview"]}
+tokio = {version = "0.1.18", optional = true, features = ["async-await-preview"]}
+tokio-threadpool = "0.1.13"
 net2 = { version = "0.2.32", optional = true }
 tokio-async-await = "0.1.6"
 
