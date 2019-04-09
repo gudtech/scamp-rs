@@ -1,5 +1,6 @@
 use crate::message::Message;
 use crate::transport::Transport;
+use crate::Action;
 use crate::error::Error;
 use std::collections::HashMap;
 
@@ -10,7 +11,7 @@ use tokio::runtime::Runtime;
 pub struct Agent {
     transports: Vec<Transport>,
     runtime: Option<Runtime>,
-    actions: HashMap<String,Box<Fn(Message) -> IntoFuture(Item=(),>>
+    actions: HashMap<String,Box<Action>>
     //discovery:
 }
 
@@ -83,40 +84,38 @@ impl Agent {
 //        me.cookedHandler(() => { return { queue_depth: me._activeRequests - 1 } })
 //        );
     }
-    pub fn registerAction<F> (&mut self, name: &str, handler: F) -> Result<(),Error>
-    where F: Fn(Message) -> Result<(),Error> {
+    pub fn registerAction<F> (&mut self, action: Box<Action>) -> Result<(),Error> {
+        println!("registerAction {}", action.name);
 
-        println!("registerAction {}", name);
-
-        self.bindTransport()?;
+//        self.bindTransport()?;
 
         //TODO - do something nicer if the same action is registered twice
-        self.actions.insert(name.to_owned(), Box::new(handler));
+        self.actions.insert(action.name.to_owned(), action);
 
         Ok(())
 
     }
 
-    pub async fn callAction(&mut self, name: &str) -> Result<(),Error> {
-        if let Some(handler) = self.actions.get(name ){
-            await!(handler())
+    pub fn callAction(&mut self, name: &str, message: Message) -> Box<Future<Item=Message,Error=Error>> {
+        if let Some(action) = self.actions.get(name ){
+            action.call(message)
         }else{
-            Err(std::io::Error::new(std::io::ErrorKind::NotFound,"Action Not Found").into())
+            Box::new(future::err(std::io::Error::new(std::io::ErrorKind::NotFound,"Action Not Found").into() ))
         }
     }
 
-    fn bindTransport (&mut self) -> Result<(), Error> {
-
-        //TODO: make it search for the right kind of transport
-        if self.transports.len() > 0{
-            return Ok(());
-        }
-
-        let transport = Transport::new( self )?;
-        self.transports.push(transport);
-
-        Ok(())
-    }
+//    fn bindTransport (&mut self) -> Result<(), Error> {
+//
+//        //TODO: make it search for the right kind of transport
+//        if self.transports.len() > 0{
+//            return Ok(());
+//        }
+//
+//        let transport = Transport::new( self )?;
+//        self.transports.push(transport);
+//
+//        Ok(())
+//    }
 
     pub fn tokio_runtime (&mut self) -> Result<&mut Runtime,Error> {
 

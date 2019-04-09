@@ -1,5 +1,6 @@
 
 #![allow(dead_code)]
+#![allow(unused_imports)]
 
 // The nightly features that are commonly needed with async / await
 #![feature(await_macro, async_await, futures_api)]
@@ -19,16 +20,17 @@
 #[macro_use]
 extern crate tokio;
 
-mod packet;
 pub mod message;
 pub mod agent;
 pub mod transport;
+pub mod action;
 pub mod error;
-mod common;
+pub(crate) mod common;
 
 pub use crate::message::Message;
 pub use crate::agent::Agent;
 pub use crate::error::Error;
+pub use crate::action::Action;
 
 #[cfg(test)]
 mod tests {
