@@ -6,7 +6,7 @@ use super::internal::{FullDataArg, FullDataRet};
 
 /// This trait represents a streaming body of a `Request` or `Response`.
 ///
-/// The built-in implementation of this trait is [`Body`](::Body), in case you
+/// The built-in implementation of this trait is [`Message`](::Message), in case you
 /// don't need to customize a send stream for your own application.
 pub trait Payload: Send + 'static {
     /// A buffer of bytes representing a single chunk of a body.
@@ -30,12 +30,12 @@ pub trait Payload: Send + 'static {
         Ok(Async::Ready(None))
     }
 
-    /// A hint that the `Body` is complete, and doesn't need to be polled more.
+    /// A hint that the `Message` is complete, and doesn't need to be polled more.
     ///
     /// This can be useful to determine if the there is any body or trailers
-    /// without having to poll. An empty `Body` could return `true` and hyper
+    /// without having to poll. An empty `Message` could return `true` and scamp
     /// would be able to know that only the headers need to be sent. Or, it can
-    /// also be checked after each `poll_data` call, to allow hyper to try to
+    /// also be checked after each `poll_data` call, to allow scamp to try to
     /// end the underlying stream with the last chunk, instead of needing to
     /// send an extra `DATA` frame just to mark the stream as finished.
     ///
@@ -47,7 +47,7 @@ pub trait Payload: Send + 'static {
 
     /// Return a length of the total bytes that will be streamed, if known.
     ///
-    /// If an exact size of bytes is known, this would allow hyper to send a
+    /// If an exact size of bytes is known, this would allow scamp to send a
     /// `Content-Length` header automatically, not needing to fall back to
     /// `Transfer-Encoding: chunked`.
     ///
@@ -57,13 +57,13 @@ pub trait Payload: Send + 'static {
         None
     }
 
-    // This API is unstable, and is impossible to use outside of hyper. Some
+    // This API is unstable, and is impossible to use outside of scamp. Some
     // form of it may become stable in a later version.
     //
     // The only thing a user *could* do is reference the method, but DON'T
     // DO THAT! :)
     #[doc(hidden)]
-    fn __hyper_full_data(&mut self, FullDataArg) -> FullDataRet<Self::Data> {
+    fn __scamp_full_data(&mut self, _: FullDataArg) -> FullDataRet<Self::Data> {
         FullDataRet(None)
     }
 }
@@ -89,7 +89,7 @@ impl<E: Payload> Payload for Box<E> {
     }
 
     #[doc(hidden)]
-    fn __hyper_full_data(&mut self, arg: FullDataArg) -> FullDataRet<Self::Data> {
-        (**self).__hyper_full_data(arg)
+    fn __scamp_full_data(&mut self, arg: FullDataArg) -> FullDataRet<Self::Data> {
+        (**self).__scamp_full_data(arg)
     }
 }
