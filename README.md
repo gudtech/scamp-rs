@@ -16,3 +16,10 @@ Usage
 -----
 
 TBD
+
+Testing
+-------
+
+To build and run tests:
+
+    cargo test
