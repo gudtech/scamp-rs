@@ -9,8 +9,6 @@ jobs:
       - run:
           name: "Install Dependencies and Build"
           command: |
-            rustup install nightly
-            rustup default nightly
             cargo build
       - run:
           name: "Run Test Suite"
