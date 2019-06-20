@@ -1,0 +1,17 @@
+version: 2
+
+jobs:
+  build:
+    docker:
+      - image: circleci/rust:1.34.1
+    steps:
+      - checkout
+      - run:
+          name: "Install Dependencies and Build"
+          command: |
+            cargo build
+      - run:
+          name: "Run Test Suite"
+          command: |
+            cargo test
+
