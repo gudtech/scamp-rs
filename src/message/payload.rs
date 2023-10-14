@@ -1,5 +1,6 @@
+use std::task::Poll;
+
 use bytes::Buf;
-use futures::{Async, Poll};
 use http::HeaderMap;
 
 use super::internal::{FullDataArg, FullDataRet};
@@ -13,21 +14,21 @@ pub trait Payload: Send + 'static {
     type Data: Buf + Send;
 
     /// The error type of this stream.
-    type Error: Into<Box<::std::error::Error + Send + Sync>>;
+    type Error: Into<Box<dyn ::std::error::Error + Send + Sync>>;
 
     /// Poll for a `Data` buffer.
     ///
     /// Similar to `Stream::poll_next`, this yields `Some(Data)` until
     /// the body ends, when it yields `None`.
-    fn poll_data(&mut self) -> Poll<Option<Self::Data>, Self::Error>;
+    fn poll_data(&mut self) -> Poll<Result<Option<Self::Data>, Self::Error>>;
 
     /// Poll for an optional **single** `HeaderMap` of trailers.
     ///
     /// This should **only** be called after `poll_data` has ended.
     ///
     /// Note: Trailers aren't currently used for HTTP/1, only for HTTP/2.
-    fn poll_trailers(&mut self) -> Poll<Option<HeaderMap>, Self::Error> {
-        Ok(Async::Ready(None))
+    fn poll_trailers(&mut self) -> Poll<Result<Option<HeaderMap>, Self::Error>> {
+        Poll::Ready(Ok(None))
     }
 
     /// A hint that the `Message` is complete, and doesn't need to be polled more.
@@ -72,11 +73,11 @@ impl<E: Payload> Payload for Box<E> {
     type Data = E::Data;
     type Error = E::Error;
 
-    fn poll_data(&mut self) -> Poll<Option<Self::Data>, Self::Error> {
+    fn poll_data(&mut self) -> Poll<Result<Option<Self::Data>, Self::Error>> {
         (**self).poll_data()
     }
 
-    fn poll_trailers(&mut self) -> Poll<Option<HeaderMap>, Self::Error> {
+    fn poll_trailers(&mut self) -> Poll<Result<Option<HeaderMap>, Self::Error>> {
         (**self).poll_trailers()
     }
 

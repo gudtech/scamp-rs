@@ -1,15 +1,16 @@
 use std::borrow::Cow;
 use std::fmt;
+use std::task::Poll;
 
 use bytes::Bytes;
-use futures::sync::{mpsc, oneshot};
-use futures::{Async, Future, Poll, Stream};
+use futures::Stream;
 use http::HeaderMap;
+use tokio::sync::{mpsc, oneshot};
 
-use crate::Error;
-use crate::common::Never;
 use super::internal::{FullDataArg, FullDataRet};
 use super::{Packet, Payload};
+use crate::common::Never;
+use crate::Error;
 //use upgrade::OnUpgrade;
 
 type MessageSender = mpsc::Sender<Result<Packet, Error>>;
@@ -21,7 +22,7 @@ type MessageSender = mpsc::Sender<Result<Packet, Error>>;
 /// Also implements `futures::Stream`, so stream combinators may be used.
 #[must_use = "streams do nothing unless polled"]
 pub struct Message {
-//    kind: Kind,
+    //    kind: Kind,
 }
 
 enum Kind {
@@ -31,11 +32,13 @@ enum Kind {
         abort_rx: oneshot::Receiver<()>,
         rx: mpsc::Receiver<Result<Packet, Error>>,
     },
-//    H2 {
-//        content_length: Option<u64>,
-//        recv: h2::RecvStream,
-//    },
-    Wrapped(Box<Stream<Item = Packet, Error = Box<::std::error::Error + Send + Sync>> + Send>),
+    //    H2 {
+    //        content_length: Option<u64>,
+    //        recv: h2::RecvStream,
+    //    },
+    Wrapped(
+        Box<dyn Stream<Item = Result<Packet, Box<dyn ::std::error::Error + Send + Sync>>> + Send>,
+    ),
 }
 //
 //type DelayEofUntil = oneshot::Receiver<Never>;
@@ -76,60 +79,60 @@ impl Message {
         Message::new(Kind::Once(None))
     }
 
-//    /// Create a `Message` stream with an associated sender half.
-//    ///
-//    /// Useful when wanting to stream chunks from another thread.
-//    #[inline]
-//    pub fn channel() -> (Sender, Message) {
-//        Self::new_channel(None)
-//    }
-//
-//    pub(crate) fn new_channel(content_length: Option<u64>) -> (Sender, Message) {
-//        let (tx, rx) = mpsc::channel(0);
-//        let (abort_tx, abort_rx) = oneshot::channel();
-//
-//        let tx = Sender {
-//            abort_tx: abort_tx,
-//            tx: tx,
-//        };
-//        let rx = Message::new(Kind::Chan {
-//            content_length,
-//            abort_rx,
-//            rx,
-//        });
-//
-//        (tx, rx)
-//    }
+    //    /// Create a `Message` stream with an associated sender half.
+    //    ///
+    //    /// Useful when wanting to stream chunks from another thread.
+    //    #[inline]
+    //    pub fn channel() -> (Sender, Message) {
+    //        Self::new_channel(None)
+    //    }
+    //
+    //    pub(crate) fn new_channel(content_length: Option<u64>) -> (Sender, Message) {
+    //        let (tx, rx) = mpsc::channel(0);
+    //        let (abort_tx, abort_rx) = oneshot::channel();
+    //
+    //        let tx = Sender {
+    //            abort_tx: abort_tx,
+    //            tx: tx,
+    //        };
+    //        let rx = Message::new(Kind::Chan {
+    //            content_length,
+    //            abort_rx,
+    //            rx,
+    //        });
+    //
+    //        (tx, rx)
+    //    }
 
-//    /// Wrap a futures `Stream` in a box inside `Message`.
-//    ///
-//    /// # Example
-//    ///
-//    /// ```
-//    /// # extern crate futures;
-//    /// # extern crate scamp;
-//    /// # use scamp::Message;
-//    /// # fn main() {
-//    /// let chunks = vec![
-//    ///     "hello",
-//    ///     " ",
-//    ///     "world",
-//    /// ];
-//    ///
-//    /// let stream = futures::stream::iter_ok::<_, ::std::io::Error>(chunks);
-//    ///
-//    /// let body = Message::wrap_stream(stream);
-//    /// # }
-//    /// ```
-//    pub fn wrap_stream<S>(stream: S) -> Message
-//        where
-//            S: Stream + Send + 'static,
-//            S::Error: Into<Box<::std::error::Error + Send + Sync>>,
-//            Packet: From<S::Item>,
-//    {
-//        let mapped = stream.map(Packet::from).map_err(Into::into);
-//        Message::new(Kind::Wrapped(Box::new(mapped)))
-//    }
+    //    /// Wrap a futures `Stream` in a box inside `Message`.
+    //    ///
+    //    /// # Example
+    //    ///
+    //    /// ```
+    //    /// # extern crate futures;
+    //    /// # extern crate scamp;
+    //    /// # use scamp::Message;
+    //    /// # fn main() {
+    //    /// let chunks = vec![
+    //    ///     "hello",
+    //    ///     " ",
+    //    ///     "world",
+    //    /// ];
+    //    ///
+    //    /// let stream = futures::stream::iter_ok::<_, ::std::io::Error>(chunks);
+    //    ///
+    //    /// let body = Message::wrap_stream(stream);
+    //    /// # }
+    //    /// ```
+    //    pub fn wrap_stream<S>(stream: S) -> Message
+    //        where
+    //            S: Stream + Send + 'static,
+    //            S::Error: Into<Box<::std::error::Error + Send + Sync>>,
+    //            Packet: From<S::Item>,
+    //    {
+    //        let mapped = stream.map(Packet::from).map_err(Into::into);
+    //        Message::new(Kind::Wrapped(Box::new(mapped)))
+    //    }
 
     fn new(kind: Kind) -> Message {
         Message {
@@ -137,106 +140,106 @@ impl Message {
         }
     }
 
-//    pub(crate) fn h2(recv: h2::RecvStream, content_length: Option<u64>) -> Self {
-//        Message::new(Kind::H2 {
-//            content_length,
-//            recv,
-//        })
-//    }
+    //    pub(crate) fn h2(recv: h2::RecvStream, content_length: Option<u64>) -> Self {
+    //        Message::new(Kind::H2 {
+    //            content_length,
+    //            recv,
+    //        })
+    //    }
 
-//    pub(crate) fn delayed_eof(&mut self, fut: DelayEofUntil) {
-//        self.extra_mut().delayed_eof = Some(DelayEof::NotEof(fut));
-//    }
+    //    pub(crate) fn delayed_eof(&mut self, fut: DelayEofUntil) {
+    //        self.extra_mut().delayed_eof = Some(DelayEof::NotEof(fut));
+    //    }
 
-//    fn take_delayed_eof(&mut self) -> Option<DelayEof> {
-//        self
-//            .extra
-//            .as_mut()
-//            .and_then(|extra| extra.delayed_eof.take())
-//    }
-//
-//    fn poll_eof(&mut self) -> Poll<Option<Packet>, ::Error> {
-//        unimplemented!()
-//
-//        match self.take_delayed_eof() {
-//            Some(DelayEof::NotEof(mut delay)) => {
-//                match self.poll_inner() {
-//                    ok @ Ok(Async::Ready(Some(..))) |
-//                    ok @ Ok(Async::NotReady) => {
-//                        self.extra_mut().delayed_eof = Some(DelayEof::NotEof(delay));
-//                        ok
-//                    },
-//                    Ok(Async::Ready(None)) => match delay.poll() {
-//                        Ok(Async::Ready(never)) => match never {},
-//                        Ok(Async::NotReady) => {
-//                            self.extra_mut().delayed_eof = Some(DelayEof::Eof(delay));
-//                            Ok(Async::NotReady)
-//                        },
-//                        Err(_done) => {
-//                            Ok(Async::Ready(None))
-//                        },
-//                    },
-//                    Err(e) => Err(e),
-//                }
-//            },
-//            Some(DelayEof::Eof(mut delay)) => {
-//                match delay.poll() {
-//                    Ok(Async::Ready(never)) => match never {},
-//                    Ok(Async::NotReady) => {
-//                        self.extra_mut().delayed_eof = Some(DelayEof::Eof(delay));
-//                        Ok(Async::NotReady)
-//                    },
-//                    Err(_done) => {
-//                        Ok(Async::Ready(None))
-//                    },
-//                }
-//            },
-//            None => self.poll_inner(),
-////        }
-//    }
-//
-//    fn poll_inner(&mut self) -> Poll<Option<Packet>, Error> {
-//        match self.kind {
-//            Kind::Once(ref mut val) => Ok(Async::Ready(val.take())),
-//            Kind::Chan {
-//                content_length: ref mut len,
-//                ref mut rx,
-//                ref mut abort_rx,
-//            } => {
-//                if let Ok(Async::Ready(())) = abort_rx.poll() {
-//                    unimplemented!();
-////                    return Err(::Error::new_body_write("body write aborted"));
-//                }
-//
-//                match rx.poll().expect("mpsc cannot error") {
-//                    Async::Ready(Some(Ok(chunk))) => {
-//                        if let Some(ref mut len) = *len {
-//                            debug_assert!(*len >= chunk.len() as u64);
-//                            *len = *len - chunk.len() as u64;
-//                        }
-//                        Ok(Async::Ready(Some(chunk)))
-//                    }
-//                    Async::Ready(Some(Err(err))) => Err(err),
-//                    Async::Ready(None) => Ok(Async::Ready(None)),
-//                    Async::NotReady => Ok(Async::NotReady),
-//                }
-//            }
-//            Kind::H2 {
-//                recv: ref mut h2, ..
-//            } => h2
-//                .poll()
-//                .map(|async| {
-//                    async.map(|opt| {
-//                        opt.map(|bytes| {
-//                            let _ = h2.release_capacity().release_capacity(bytes.len());
-//                            Packet::from(bytes)
-//                        })
-//                    })
-//                })
-//                .map_err(::Error::new_body),
-//            Kind::Wrapped(ref mut s) => s.poll().map_err(crate::Error::new_body),
-//        }
-//    }
+    //    fn take_delayed_eof(&mut self) -> Option<DelayEof> {
+    //        self
+    //            .extra
+    //            .as_mut()
+    //            .and_then(|extra| extra.delayed_eof.take())
+    //    }
+    //
+    //    fn poll_eof(&mut self) -> Poll<Option<Packet>, ::Error> {
+    //        unimplemented!()
+    //
+    //        match self.take_delayed_eof() {
+    //            Some(DelayEof::NotEof(mut delay)) => {
+    //                match self.poll_inner() {
+    //                    ok @ Ok(Async::Ready(Some(..))) |
+    //                    ok @ Ok(Async::NotReady) => {
+    //                        self.extra_mut().delayed_eof = Some(DelayEof::NotEof(delay));
+    //                        ok
+    //                    },
+    //                    Ok(Async::Ready(None)) => match delay.poll() {
+    //                        Ok(Async::Ready(never)) => match never {},
+    //                        Ok(Async::NotReady) => {
+    //                            self.extra_mut().delayed_eof = Some(DelayEof::Eof(delay));
+    //                            Ok(Async::NotReady)
+    //                        },
+    //                        Err(_done) => {
+    //                            Ok(Async::Ready(None))
+    //                        },
+    //                    },
+    //                    Err(e) => Err(e),
+    //                }
+    //            },
+    //            Some(DelayEof::Eof(mut delay)) => {
+    //                match delay.poll() {
+    //                    Ok(Async::Ready(never)) => match never {},
+    //                    Ok(Async::NotReady) => {
+    //                        self.extra_mut().delayed_eof = Some(DelayEof::Eof(delay));
+    //                        Ok(Async::NotReady)
+    //                    },
+    //                    Err(_done) => {
+    //                        Ok(Async::Ready(None))
+    //                    },
+    //                }
+    //            },
+    //            None => self.poll_inner(),
+    ////        }
+    //    }
+    //
+    //    fn poll_inner(&mut self) -> Poll<Option<Packet>, Error> {
+    //        match self.kind {
+    //            Kind::Once(ref mut val) => Ok(Async::Ready(val.take())),
+    //            Kind::Chan {
+    //                content_length: ref mut len,
+    //                ref mut rx,
+    //                ref mut abort_rx,
+    //            } => {
+    //                if let Ok(Async::Ready(())) = abort_rx.poll() {
+    //                    unimplemented!();
+    ////                    return Err(::Error::new_body_write("body write aborted"));
+    //                }
+    //
+    //                match rx.poll().expect("mpsc cannot error") {
+    //                    Async::Ready(Some(Ok(chunk))) => {
+    //                        if let Some(ref mut len) = *len {
+    //                            debug_assert!(*len >= chunk.len() as u64);
+    //                            *len = *len - chunk.len() as u64;
+    //                        }
+    //                        Ok(Async::Ready(Some(chunk)))
+    //                    }
+    //                    Async::Ready(Some(Err(err))) => Err(err),
+    //                    Async::Ready(None) => Ok(Async::Ready(None)),
+    //                    Async::NotReady => Ok(Async::NotReady),
+    //                }
+    //            }
+    //            Kind::H2 {
+    //                recv: ref mut h2, ..
+    //            } => h2
+    //                .poll()
+    //                .map(|async| {
+    //                    async.map(|opt| {
+    //                        opt.map(|bytes| {
+    //                            let _ = h2.release_capacity().release_capacity(bytes.len());
+    //                            Packet::from(bytes)
+    //                        })
+    //                    })
+    //                })
+    //                .map_err(::Error::new_body),
+    //            Kind::Wrapped(ref mut s) => s.poll().map_err(crate::Error::new_body),
+    //        }
+    //    }
 }
 
 impl Default for Message {
@@ -248,60 +251,60 @@ impl Default for Message {
 }
 
 impl Message {
-
-    fn poll_data(&mut self) -> Poll<Option<Packet>, Error> {
+    fn poll_data(&mut self) -> Poll<Result<Option<Packet>, Error>> {
         unimplemented!()
-//        self.poll_eof()
+        //        self.poll_eof()
     }
 
-    fn poll_trailers(&mut self) -> Poll<Option<HeaderMap>, Error> {
+    fn poll_trailers(&mut self) -> Poll<Result<Option<HeaderMap>, Error>> {
         unimplemented!()
-//        match self.kind {
-//            Kind::H2 {
-//                recv: ref mut h2, ..
-//            } => h2.poll_trailers().map_err(::Error::new_h2),
-//            _ => Ok(Async::Ready(None)),
-//        }
+        //        match self.kind {
+        //            Kind::H2 {
+        //                recv: ref mut h2, ..
+        //            } => h2.poll_trailers().map_err(::Error::new_h2),
+        //            _ => Ok(Async::Ready(None)),
+        //        }
     }
 
     fn is_end_stream(&self) -> bool {
         unimplemented!()
-//        match self.kind {
-//            Kind::Once(ref val) => val.is_none(),
-//            Kind::Chan { content_length, .. } => content_length == Some(0),
-//            Kind::H2 { recv: ref h2, .. } => h2.is_end_stream(),
-//            Kind::Wrapped(..) => false,
-//        }
+        //        match self.kind {
+        //            Kind::Once(ref val) => val.is_none(),
+        //            Kind::Chan { content_length, .. } => content_length == Some(0),
+        //            Kind::H2 { recv: ref h2, .. } => h2.is_end_stream(),
+        //            Kind::Wrapped(..) => false,
+        //        }
     }
 
     fn content_length(&self) -> Option<u64> {
         unimplemented!()
-//        match self.kind {
-//            Kind::Once(Some(ref val)) => Some(val.len() as u64),
-//            Kind::Once(None) => Some(0),
-//            Kind::Wrapped(..) => None,
-//            Kind::Chan { content_length, .. } /*| Kind::H2 { content_length, .. }*/ => content_length,
-//        }
+        //        match self.kind {
+        //            Kind::Once(Some(ref val)) => Some(val.len() as u64),
+        //            Kind::Once(None) => Some(0),
+        //            Kind::Wrapped(..) => None,
+        //            Kind::Chan { content_length, .. } /*| Kind::H2 { content_length, .. }*/ => content_length,
+        //        }
     }
 
     // We can improve the performance of `Message` when we know it is a Once kind.
     #[doc(hidden)]
     fn __scamp_full_data(&mut self, _: FullDataArg) -> FullDataRet<Packet> {
         unimplemented!()
-//        match self.kind {
-//            Kind::Once(ref mut val) => FullDataRet(val.take()),
-//            _ => FullDataRet(None),
-//        }
+        //        match self.kind {
+        //            Kind::Once(ref mut val) => FullDataRet(val.take()),
+        //            _ => FullDataRet(None),
+        //        }
     }
 }
 
 impl Stream for Message {
     type Item = Packet;
-    type Error = Error;
 
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-        unimplemented!()
-//        self.poll_data()
+    fn poll_next(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
+        todo!()
     }
 }
 

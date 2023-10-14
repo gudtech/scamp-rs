@@ -3,23 +3,23 @@ use std::fmt;
 
 use std::future::Future;
 
+use crate::common::Never;
+use crate::message::Payload;
 use crate::Error;
 use crate::Message;
-use crate::message::Payload;
-use crate::common::Never;
-
+use tokio::task::spawn_blocking;
 
 pub enum Kind {
-    BlockingRPC(Box<Fn(Message) -> Result<Message,Error>>),
+    BlockingRPC(Box<dyn Fn(Message) -> Result<Message, Error>>),
     AsyncRPC,
-    Async
+    Async,
 }
 
 pub struct Action {
     pub name: String,
     // sector
     // probably other stuff about discovery
-    kind: Kind
+    kind: Kind,
 }
 
 /// Create a `Action` from a function.
@@ -35,57 +35,52 @@ pub struct Action {
 /// });
 /// ```
 pub fn rpc_action<F: 'static>(name: &str, f: F) -> Action
-    where
-        F: Fn(Message) -> Result<Message, Error>,
+where
+    F: Fn(Message) -> Result<Message, Error>,
 {
     Action {
         name: name.to_owned(),
-        kind: Kind::BlockingRPC(Box::new(f))
+        kind: Kind::BlockingRPC(Box::new(f)),
     }
 }
 
+impl Action {
+    pub fn call_blocking(&self, message: Message) -> Result<Message, Error> {
+        // use tokio_async_await::compat::{backward, forward};
 
-
-impl Action{
-    pub fn call_blocking (&self, message: Message) -> Result<Message,Error> {
-        use tokio_async_await::compat::{backward,forward};
-
-        tokio::runtime::current_thread::block_on_all( backward::Compat::new(self.call(message) ))
+        // spawn_blocking(self.call(message))
+        unimplemented!()
     }
-    pub async fn call (&self, message: Message) -> Result<Message,Error> {
-
-        //use futures::future::{lazy, poll_fn};
-        use tokio_threadpool::blocking;
-
+    pub async fn call(&self, message: Message) -> Result<Message, Error> {
         match self.kind {
             Kind::BlockingRPC(ref f) => {
                 //TODO - Deal with NotReady error
                 // Should probably set up our own threadpool for blocking functions
 
-//                use std::future::Future as NewFuture;
-//                use futures::Future as OldFuture;
-//
-//                // converts from an old style Future to a new style one:
-//                fn forward<I,E>(f: impl OldFuture<Item=I, Error=E> + Unpin) -> impl NewFuture<Output=Result<I,E>> {
-//                    use tokio_async_await::compat::forward::IntoAwaitable;
-//                    f.into_awaitable()
-//                }
+                //                use std::future::Future as NewFuture;
+                //                use futures::Future as OldFuture;
+                //
+                //                // converts from an old style Future to a new style one:
+                //                fn forward<I,E>(f: impl OldFuture<Item=I, Error=E> + Unpin) -> impl NewFuture<Output=Result<I,E>> {
+                //                    use tokio_async_await::compat::forward::IntoAwaitable;
+                //                    f.into_awaitable()
+                //                }
 
-//NOTE: seems to be some incompatibility between
+                //NOTE: seems to be some incompatibility between
                 // futures::poll::Async<std::result::Result<message::message::Message, error::Error>>
                 // and
-//                let foo :futures::Poll<Result<Message,Error>,tokio_threadpool::BlockingError> = blocking(move|| {
-                    f(message)
-//                }).map_err(|_| panic!("the threadpool shut down"));
-//
-//                let bar = forward(foo);
-////
-//                use tokio_async_await::compat::forward::IntoAwaitable;
-//                let bar = foo.into_awaitable();
-//
+                //                let foo :futures::Poll<Result<Message,Error>,tokio_threadpool::BlockingError> = blocking(move|| {
+                f(message)
+                //                }).map_err(|_| panic!("the threadpool shut down"));
+                //
+                //                let bar = forward(foo);
+                ////
+                //                use tokio_async_await::compat::forward::IntoAwaitable;
+                //                let bar = foo.into_awaitable();
+                //
                 //await!(bar)
-            },
-            _ => unimplemented!()
+            }
+            _ => unimplemented!(),
         }
     }
 }
