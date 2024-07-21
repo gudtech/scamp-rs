@@ -10,11 +10,3 @@ pub mod discovery;
 // pub use crate::agent::Agent;
 // pub use crate::error::Error;
 // pub use crate::message::Message;
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-}
