@@ -1,0 +1,7037 @@
+{
+  "identity": "mainapi:4HaM4TN5IVSLNfqhERfKvsVu",
+  "weight": 1,
+  "interval": 5000,
+  "uri": "beepish+tls://172.18.0.7:30201",
+  "actions": [
+    {
+      "path": "Download.Financials.journalentries",
+      "version": 1,
+      "flags": [
+        "NoAuth"
+      ],
+      "sector": "web",
+      "envelopes": [
+        "web"
+      ],
+      "packet_section": "V4"
+    },
+    {
+      "path": "Download.PO.csv",
+      "version": 1,
+      "flags": [
+        "NoAuth"
+      ],
+      "sector": "web",
+      "envelopes": [
+        "web"
+      ],
+      "packet_section": "V4"
+    },
+    {
+      "path": "Download.PO.pdf",
+      "version": 1,
+      "flags": [
+        "NoAuth"
+      ],
+      "sector": "web",
+      "envelopes": [
+        "web"
+      ],
+      "packet_section": "V4"
+    },
+    {
+      "path": "Flat.calculate",
+      "version": 1,
+      "flags": [],
+      "sector": "taxmodule",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V4"
+    },
+    {
+      "path": "TaxJar.calculate",
+      "version": 1,
+      "flags": [],
+      "sector": "taxmodule",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V4"
+    },
+    {
+      "path": "VAT.calculate",
+      "version": 1,
+      "flags": [],
+      "sector": "taxmodule",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V4"
+    },
+    {
+      "path": "API.Documentation.fetch_tree",
+      "version": 1,
+      "flags": [
+        "NoAuth",
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "API.Status.health_check",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "API.clientInitiatedLog",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "API.getNodeList",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.ACL.Privs.read",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.ACL.Roles.read",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Account.Param.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Account.Param.read",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Account.Param.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Account.Param.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Account.RoutingParam.getOrderMode",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Account.RoutingParam.read",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Account.RoutingParam.test",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Account.RoutingParam.test",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Account.RoutingParam.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Account.read",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Account.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Address.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Address.get",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Address.verifyAndSave",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Attribute.Dependency.list",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Attribute.Map.list",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Attribute.Map.save",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Attribute.MetaFields.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Attribute.MetaFields.list",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Attribute.MetaFields.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Attribute.ValTree.list",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Attribute.ValTree.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Attribute.Value.list",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Attribute.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Attribute.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Attribute.list",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Attribute.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Box.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Box.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Box.print_label",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Box.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Brand.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Brand.get",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Brand.list",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Brand.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Channel.CA.get",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Channel.CA.set",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Channel.CA.test",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Channel.Definition.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Channel.InventoryLocation.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Channel.InventoryLocation.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Channel.InventoryLocation.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Channel.MagentoExtension.get",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Channel.MagentoExtension.set",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Channel.MagentoExtension.test",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Channel.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Channel.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Channel.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Container.Range.assertContainers",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Container.Range.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Container.Range.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Container.Range.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Device.email",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Device.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Device.printCommandLabel",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Device.register",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Device.test",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.DeviceProxy.get",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Email.Profile.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Employee.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Facility.Zone.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Facility.Zone.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Facility.Zone.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Facility.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Facility.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Facility.get",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Facility.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Feed.ErrorRecords.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Feed.Module.list",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Feed.Schema.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Feed.Schema.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Feed.Test.getFields",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Feed.Test.testTemplates",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Feed.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Feed.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Feed.getErrorInfo",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Feed.poke",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Feed.serialize",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Feed.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.FraudFactorMap.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.FraudFactorMap.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.FraudFactorMap.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Fulfillment.Actor.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Fulfillment.Actor.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Fulfillment.ActorRole.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Fulfillment.ActorRole.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Inventory.AdjustmentReason.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Inventory.AdjustmentReason.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Inventory.AdjustmentReason.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.MapTable.Line.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.MapTable.Line.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.MapTable.Line.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.MapTable.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.MapTable.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.MapTable.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.OldFeed.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.OldFeed.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.OldFeed.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Order.CancelReason.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Order.CancelReason.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Order.CancelReason.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Order.DiscountReason.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Order.DiscountReason.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Order.DiscountReason.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Order.ItemOption.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.PO.RoutingGuide.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.PO.RoutingGuide.load",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.PO.RoutingGuide.save",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.POType.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.POType.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.POType.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Param.getAll",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Payment.Account.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Payment.Account.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Payment.Account.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.ReturnItemReason.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.ReturnItemReason.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.ReturnItemReason.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Serials.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Serials.set",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        },
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Ship.Account.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Ship.Account.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Ship.Account.subscriptionConfiguration",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Ship.Account.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.ShipService.CarrierClassMapping.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.ShipService.CarrierClassMapping.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.ShipService.CarrierClassMapping.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.ShipService.ChannelMapping.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.ShipService.ChannelMapping.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.ShipService.ChannelMapping.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.ShipService.MappingRules.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.ShipService.MappingRules.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.ShipService.MappingRules.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.ShipService.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.ShipService.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.ShipService.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Subchannel.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Subchannel.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Task.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Task.reset",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Task.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.TaxNexus.create",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.TaxNexus.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.TaxNexus.update",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Terminal.DevicePrefs.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Terminal.DevicePrefs.delete",
+      "version": 1,
+      "flags": [
+        {
+          "Other": "destroy"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Terminal.DevicePrefs.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Terminal.DevicePrefs.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Terminal.DevicePrefs.save",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Terminal.DevicePrefs.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Terminal.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Terminal.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Terminal.getMyTerminalInfo",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Terminal.hasPaymentDevice",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Terminal.reauth",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Terminal.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.User.ACL.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.User.ACL.destroy",
+      "version": 1,
+      "flags": [
+        {
+          "Other": "destroy"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.User.ACL.read",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.User.Credentials.createApiKey",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.User.Credentials.printBadge",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.User.Credentials.read",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.User.Credentials.setCredentialActive",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.User.Credentials.setLoginData",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.User.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.User.read",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.User.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Vendor.Contact.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Vendor.Contact.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Vendor.Contact.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Vendor.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Vendor.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Config.Vendor.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Constant.AppVersion.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Constant.Country.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Constant.Enum.allEnums",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Constant.Enum.list",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Constant.FraudFactor.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Constant.Param.set_params",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Constant.Payment.Terms.create",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Constant.Payment.Terms.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Constant.Ship.Carrier.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Constant.Ship.CarrierClass.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Constant.Ship.PackagingType.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Constant.Ship.Processor.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Constant.Ship.Speed.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Constant.State.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Constant.TaxModule.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Constant.Template.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Constant.TimeZone.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Address.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Address.get",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Address.retire",
+      "version": 1,
+      "flags": [
+        {
+          "Other": "destroy"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Address.verifyAndSave",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.Email.generate_body",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.Email.send_with_body",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.FraudRisk.list",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.Item.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.Item.list",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.Item.retire",
+      "version": 1,
+      "flags": [
+        {
+          "Other": "destroy"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.Item.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.RMA.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.RMA.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.RMA.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.Report.list",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.Return.create",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.Return.submit",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.RoutingGroup.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.RoutingGroup.regroup",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.Shipment.Item.cancel",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.Shipment.Item.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.Shipment.Item.reorder",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.Shipment.Package.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.Shipment.Package.reprint",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.Shipment.Package.void",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.Shipment.Picks.list",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.Shipment.Report.list",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.Shipment.Report.list",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.Shipment.SkuFrequencyReport.list",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.Shipment.SkuReport.list",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.Shipment.get",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.Shipment.list",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        },
+        {
+          "Timeout": 300
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.applyStoreCredit",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.authCard",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.authCheck",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.authGiftCard",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.authMoneyOrder",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.authTradeCredit",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.cancel",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.capTradeCredit",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.chargeCash",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.chargeGiftCard",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.creditPayment",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.emailInvoice",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.hold",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.make",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.markReadyForPickup",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.printInvoice",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.printReceipt",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.push",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.push",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.recCredit",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.recordExternalCardCharge",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.recordExternalThirdPartyPayment",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.recordPaymentEvent",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.requestDevicePayment",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.submit",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.submit",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.Order.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.RMA.Item.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.RMA.Item.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.RMA.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.RMA.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.RMA.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.StoreCredit.Transaction.list",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.StoreCredit.adjust",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.printStoreCredit",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Customer.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Directory.BackgroundJob.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Directory.BackgroundJob.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Facility.CashTray.adjustCash",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Facility.CashTray.count",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Facility.CashTray.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Facility.CashTray.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Facility.CashTray.print",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Facility.CashTray.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Facility.CashTraySession.close",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Facility.CashTraySession.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Facility.CashTraySession.open",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Facility.CashTraySession.report",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Facility.CashTraySession.report",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Facility.CashTraySession.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.ASN.acknowledge",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.ASN.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Package.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Package.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Package.populate_rates_for_params",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Package.rate_offers",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Package.update",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Ship.Session.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Ship.Session.getStats",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Ship.Session.has_close_documents",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Ship.Session.open",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Ship.Session.reprint_close_documents",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Ship.Session.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Shipment.CancelPendingTransmit",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Shipment.MarkPendingTransmit",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Shipment.MarkTransmitted",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Shipment.complete",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Shipment.complete_with_packages",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Shipment.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Shipment.get",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Wave.Pick.ack",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Wave.Pick.fetch",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Wave.Pick.next",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Wave.Pick.notfound",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Wave.bulkPrint",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Wave.bulkShipmentAdd",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Wave.close",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Wave.consolidatedPrint",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Wave.consolidatedShipmentAdd",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Wave.create",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Wave.exportPickList",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Wave.list",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Wave.print",
+      "version": 1,
+      "flags": [
+        {
+          "Timeout": 300
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Wave.retransmit",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Wave.setPicksClosed",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Wave.setPicksTransmitted",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Fulfillment.Wave.shipmentAdd",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Integration.Channel.register",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Container.Contents.list",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Container.bulkAssert",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Container.create",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Container.createTote",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Container.deactivate",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Container.get",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Container.list",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Container.move",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Container.print",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Container.search",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Container.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Count.AddContainers",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Count.LogItemCount",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Count.NextItemCountRequest",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Count.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Count.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Count.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Count.Report.Progress.list",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Count.Report.User.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.ExternalLot.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.ExternalLot.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.ExternalLot.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Lot.create",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Lot.reprint",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Lot.search",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Lot.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Lot.void",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Quantity.Adjustment.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Quantity.adjust",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Quantity.search",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Receive.createRecItem",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Receive.getWeight",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Receive.receive",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Receive.reprint",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Transfer.Batch.cancel",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Transfer.Batch.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Transfer.Batch.list",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Transfer.Batch.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Transfer.Item.ack",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Transfer.Item.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Transfer.Item.list",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Transfer.Item.next",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Transfer.Item.notfound",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Inventory.Transfer.Item.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Media.Map.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Media.Map.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Media.Work.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Media.Work.get",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Media.Work.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Media.formats",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Media.mapWork",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Media.registerFile",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Media.registerWork",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Media.workInfo",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Nav.HomeFeed.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Nav.Shortcuts.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Nav.Shortcuts.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Nav.list",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Notes.add",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Notes.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Notes.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Notes.list",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Po.Item.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Po.Item.itemsByGroup",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Po.Item.retire",
+      "version": 1,
+      "flags": [
+        {
+          "Other": "destroy"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Po.Item.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Po.ItemGroup.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Po.ItemGroup.getAttributeColumns",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Po.ItemGroup.list",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Po.ItemGroup.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Po.Manifest.Item.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Po.Manifest.Item.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Po.Manifest.Item.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Po.Manifest.Item.get",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Po.Manifest.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Po.Note.add",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Po.Note.list",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.APETree.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.APETree.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Association.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Association.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Association.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.ExternalSku.Quant.read",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.ExternalSku.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.ExternalSku.search",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.ExternalSku.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.ExternalSku.update",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Family.Locator.locate",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Family.create",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Family.get",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Family.save",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Family.search",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Family.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.FamilyIdent.search",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Ident.assert",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Ident.get",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Ident.search",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.PhotoSample.choose",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.PhotoSample.list",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Po.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Po.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Po.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Po.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Po.markReady",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Po.markSubmitted",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Po.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Po.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.PriceHistory.read",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.PriceHistoryAttr.read",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Sku.Barcode.add",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Sku.Barcode.delete",
+      "version": 1,
+      "flags": [
+        {
+          "Other": "destroy"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Sku.Barcode.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Sku.MediaUtil.getRepSkus",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Sku.addMediaMapping",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Sku.assertByAttrs",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Sku.get",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Sku.getAttributeData",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Sku.getLegacyLot",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Sku.inventory_poke",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Sku.printLabel",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Sku.queryMedia",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Sku.reserve",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Sku.retire",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Sku.save",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        },
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Product.Sku.search",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Receive.Piece.create",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Create"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Receive.Piece.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Receive.Piece.move",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Receive.Piece.reprint",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Receive.Piece.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Receive.Shipment.createAndPrint",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Receive.Shipment.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Receive.Shipment.update",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "User.getInfo",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "User.getInfo",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "User.getPrivs",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "User.reportError",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Utility.Address.autoComplete",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Utility.Dashboard.inventory_actions_by_user_today",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Utility.Dashboard.order_count_today",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Utility.Dashboard.order_statuses",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Utility.Dashboard.order_summary",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Utility.Dashboard.order_summary",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Utility.Dashboard.orders_completed_by_hour",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Utility.Dashboard.orders_today_by_channel",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Utility.Dashboard.orders_today_by_channel_subchannel",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Utility.Dashboard.orders_today_by_hour",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Utility.Dashboard.pos_orders_today_by_zone",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Utility.Dashboard.queue_depth_history",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Utility.Dashboard.top_skus_today",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Utility.EventLog.annotate",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Utility.EventLog.createEvent",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Utility.EventLog.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Utility.EventLogSummary.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Utility.EventLogSummary.resolve",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Utility.Tag.search",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Vendor.ASN.enable",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Update"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Vendor.PO.Complete",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Vendor.PO.CompleteDS",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Vendor.PO.MarkAccepted",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Vendor.PO.MarkSubmitted",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Vendor.PO.SubmitPartialTracking",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Vendor.PO.UpdateEstShipDate",
+      "version": 1,
+      "flags": [],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "Vendor.PO.fetch",
+      "version": 1,
+      "flags": [
+        {
+          "CrudOp": "Read"
+        }
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    },
+    {
+      "path": "_meta.documentation",
+      "version": 1,
+      "flags": [
+        "NoAuth"
+      ],
+      "sector": "main",
+      "envelopes": [
+        "json",
+        "jsonstore",
+        "extdirect"
+      ],
+      "packet_section": "V3"
+    }
+  ],
+  "timestamp": 1720724094.61916
+}

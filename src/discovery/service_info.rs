@@ -1,11 +1,11 @@
 use itertools::izip;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use serde::de::DeserializeOwned;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{from_value, Map, Value};
-use std::{collections::HashMap, fmt};
+use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct ServiceInfo {
     identity: String,
     weight: u32,
@@ -15,10 +15,42 @@ pub struct ServiceInfo {
     timestamp: f64,
 }
 
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+struct Action {
+    path: String, // Eg product.sku.fetch
+    version: u32, // Eg 1
+    flags: Vec<Flag>,
+    sector: String,
+    envelopes: Vec<String>,
+    packet_section: PacketSection,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+enum Flag {
+    NoAuth,
+    Timeout(u32), // eg t600
+    Other(String),
+    CrudOp(CrudOp),
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+enum CrudOp {
+    Create,
+    Read,
+    Update,
+    Delete,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+enum PacketSection {
+    V3,
+    V4,
+}
+
 #[derive(Debug)]
 pub enum ServiceInfoParseError {
     ExpectedJsonArray,
-    InvalidArrayLength,
+    InvalidRootArray,
     MissingField(&'static str),
     InvalidField(&'static str),
     JsonError(serde_json::Error),
@@ -32,6 +64,8 @@ pub enum ServiceInfoParseError {
         usize,
     ),
     RLERepeatCount(&'static str, usize),
+    InvalidV3Namespace(usize),
+    InvalidV3Action(usize, usize, &'static str),
 }
 
 /// display all branches
@@ -39,7 +73,7 @@ impl fmt::Display for ServiceInfoParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ServiceInfoParseError::ExpectedJsonArray => write!(f, "Expected JSON array"),
-            ServiceInfoParseError::InvalidArrayLength => write!(f, "Invalid array length"),
+            ServiceInfoParseError::InvalidRootArray => write!(f, "Invalid array length"),
             ServiceInfoParseError::MissingField(field) => write!(f, "Missing field: {}", field),
             ServiceInfoParseError::InvalidField(field) => write!(f, "Invalid field: {}", field),
             ServiceInfoParseError::JsonError(e) => write!(f, "JSON error: {}", e),
@@ -51,6 +85,16 @@ impl fmt::Display for ServiceInfoParseError {
             }
             ServiceInfoParseError::RLERepeatCount(name, i) => {
                 write!(f, "RLE repeat count error: {} at {}: {}", i, name, i)
+            }
+            ServiceInfoParseError::InvalidV3Namespace(ns_i) => {
+                write!(f, "Invalid v3 namespace at {}", ns_i)
+            }
+            ServiceInfoParseError::InvalidV3Action(ns_i, ac_i, reason) => {
+                write!(
+                    f,
+                    "Invalid v3 action at namespace {} action {} {}",
+                    ns_i, ac_i, reason
+                )
             }
         }
     }
@@ -71,7 +115,7 @@ impl ServiceInfo {
             .ok_or_else(|| ServiceInfoParseError::ExpectedJsonArray)?;
 
         if array.len() != 9 {
-            return Err(ServiceInfoParseError::InvalidArrayLength);
+            return Err(ServiceInfoParseError::InvalidRootArray);
         }
 
         let version = array[0]
@@ -82,7 +126,7 @@ impl ServiceInfo {
             .as_str()
             .ok_or_else(|| ServiceInfoParseError::MissingField("identity"))?;
 
-        let default_sector = array[2]
+        let v3_sector = array[2]
             .as_str()
             .ok_or_else(|| ServiceInfoParseError::MissingField("sector"))?
             .to_string();
@@ -102,7 +146,7 @@ impl ServiceInfo {
             .ok_or_else(|| ServiceInfoParseError::MissingField("uri"))?
             .to_string();
 
-        let mut default_envelopes: Vec<String> = Vec::new();
+        let mut v3_envelopes: Vec<String> = Vec::new();
 
         let envelopes_and_v4actions = array[6]
             .as_array()
@@ -120,11 +164,12 @@ impl ServiceInfo {
         // Iterate over the envelopes and v4 actions
         for value in envelopes_and_v4actions {
             match value {
-                Value::String(envelope) => default_envelopes.push(envelope.to_string()),
+                Value::String(envelope) => v3_envelopes.push(envelope.to_string()),
                 Value::Object(obj) => parse_v4_actions(obj, &mut actions)?,
                 _ => {}
             }
         }
+        parse_v3_actions(v3_actions, &v3_sector, &v3_envelopes, &mut actions)?;
 
         Ok(ServiceInfo {
             identity: identity.to_string(),
@@ -135,6 +180,87 @@ impl ServiceInfo {
             timestamp,
         })
     }
+}
+
+fn parse_v3_actions(
+    obj: &Vec<Value>,
+    sector: &str,
+    envelopes: &[String],
+    actions: &mut Vec<Action>,
+) -> Result<(), ServiceInfoParseError> {
+    // this is a much simpler format than v4
+    // [
+    //     [
+    //         "API.Documentation",
+    //         [ "fetch_tree", "noauth,read" ]
+    //     ],
+    //     [
+    //         "API.Status",
+    //         [ "health_check", "" ]
+    //     ],
+    //     ...
+    // ]
+    for (ns_i, ns) in obj.iter().enumerate() {
+        match ns {
+            Value::Array(ns_arr) if ns_arr.len() > 0 => {
+                let namespace = ns_arr[0]
+                    .as_str()
+                    .ok_or(ServiceInfoParseError::MissingField("namespace [0]"))?;
+
+                for (ac_i, ac) in ns_arr.iter().skip(1).enumerate() {
+                    match ac {
+                        Value::Array(ac_arr) if ac_arr.len() == 2 || ac_arr.len() == 3 => {
+                            let name = ac_arr[0].as_str().ok_or(
+                                ServiceInfoParseError::InvalidV3Action(ns_i, ac_i, "name"),
+                            )?;
+
+                            let flags = ac_arr[1].as_str().ok_or(
+                                ServiceInfoParseError::InvalidV3Action(ns_i, ac_i, "flags"),
+                            )?;
+
+                            // optional, defaults to 1
+                            // if specified it must parse to a number
+                            let version = match ac_arr.get(2) {
+                                Some(Value::Number(v)) => {
+                                    v.as_u64().ok_or(ServiceInfoParseError::InvalidV3Action(
+                                        ns_i,
+                                        ac_i,
+                                        "version must be a number",
+                                    ))? as u32
+                                }
+                                _ => 1,
+                            };
+
+                            let action = Action {
+                                path: format!("{}.{}", namespace, name),
+                                version,
+                                flags: flags
+                                    .split(',')
+                                    .filter(|s| !s.is_empty())
+                                    .map(Flag::parse)
+                                    .collect(),
+                                sector: sector.to_string(),
+                                envelopes: envelopes.to_vec(),
+                                packet_section: PacketSection::V3,
+                            };
+                            actions.push(action);
+                        }
+                        _ => {
+                            return Err(ServiceInfoParseError::InvalidV3Action(
+                                ns_i,
+                                ac_i,
+                                "(not array of length 2",
+                            ));
+                        }
+                    }
+                }
+            }
+            _ => {
+                return Err(ServiceInfoParseError::InvalidV3Namespace(ns_i));
+            }
+        }
+    }
+    Ok(())
 }
 
 fn parse_v4_actions(
@@ -176,6 +302,7 @@ fn parse_v4_actions(
                 .filter(|s| !s.is_empty())
                 .map(|s| s.to_string())
                 .collect(),
+            packet_section: PacketSection::V4,
         };
 
         actions.push(action);
@@ -270,31 +397,6 @@ where
     }
 }
 
-#[derive(Debug)]
-struct Action {
-    path: String, // Eg product.sku.fetch
-    version: u32, // Eg 1
-    flags: Vec<Flag>,
-    sector: String,
-    envelopes: Vec<String>,
-}
-
-#[derive(Debug)]
-enum Flag {
-    NoAuth,
-    Timeout(u32), // eg t600
-    Other(String),
-    CrudOp(CrudOp),
-}
-
-#[derive(Debug)]
-enum CrudOp {
-    Create,
-    Read,
-    Update,
-    Delete,
-}
-
 impl CrudOp {
     fn parse(v: &str) -> Option<Self> {
         match v {
@@ -329,6 +431,7 @@ impl Flag {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
 
     #[test]
@@ -338,7 +441,14 @@ mod tests {
         ))
         .unwrap();
 
-        println!("{:?}", info);
+        // Does it match our reference?
+        assert_eq!(
+            info,
+            serde_json::from_str::<ServiceInfo>(include_str!(
+                "../../samples/service_info_packet_v3_data_parsed.json"
+            ))
+            .unwrap()
+        );
     }
 }
 
