@@ -1,3 +1,3 @@
 pub mod announcement;
-pub mod cache;
+pub mod directory;
 pub mod service_info;

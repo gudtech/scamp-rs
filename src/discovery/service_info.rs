@@ -122,6 +122,12 @@ impl ServiceInfo {
             .as_u64()
             .ok_or_else(|| ServiceInfoParseError::MissingField("version"))?;
 
+        // we don't support versions 1 or 2, there is no 5
+        // And for weird historical reasons, version 4 is represented as "3"
+        if version != 3 {
+            return Err(ServiceInfoParseError::InvalidField("version"));
+        }
+
         let identity = array[1]
             .as_str()
             .ok_or_else(|| ServiceInfoParseError::MissingField("identity"))?;
@@ -285,7 +291,7 @@ fn parse_v4_actions(
     // let vmins = unrle::<u32>(obj, "acver", false, len)?;
     let flagss = unrle::<String>(obj, "acflag", false, len)?;
 
-    for (namespace, name, compat, ver, flags, envelopes, sector) in
+    for (namespace, name, _compat, ver, flags, envelopes, sector) in
         izip!(namespaces, names, compats, acvers, flagss, envelopess, sectors)
     {
         let action = Action {
