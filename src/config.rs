@@ -3,7 +3,6 @@ use log;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use std::net::{Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -38,12 +37,11 @@ impl Config {
         // or from one of several default paths
         let config_path = Self::get_config_path(config_path)?;
 
-        println!("config path: {}", config_path.path.to_str().unwrap());
+        println!("Using config path: {}", config_path.path.to_str().unwrap());
 
         let config_contents = std::fs::read_to_string(&config_path.path)?;
         let root = Self::parse_config(&config_contents, config_path.conf_rewrites)?;
 
-        println!("config contents: {}", root.to_string());
         Ok(Self { root })
     }
 
@@ -102,7 +100,7 @@ impl Config {
                 }
             }
 
-            if let Some(mut home) = homedir::my_home()? {
+            if let Some(home) = homedir::my_home()? {
                 let path = home.join("GT/backplane/etc/soa.conf");
                 if path.exists() {
                     // rewrite /backplane/*
@@ -196,6 +194,7 @@ impl ConfElement {
     }
     /// writes the config file out to a writable stream in the original format
     /// this is useful for debugging
+    #[allow(dead_code)]
     pub fn write_to_file(&self, writable: &mut impl std::io::Write, prefix: &str) -> Result<()> {
         if let Some(value) = &self.value {
             writeln!(writable, "{} = {}", prefix, value)?;
@@ -217,6 +216,7 @@ impl ConfElement {
 
         Ok(())
     }
+    #[allow(dead_code)]
     pub fn to_string(&self) -> String {
         let mut writer = Vec::new();
         self.write_to_file(&mut writer, "").unwrap();

@@ -5,43 +5,54 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{from_value, Map, Value};
 use std::fmt;
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct ServiceInfo {
-    identity: String,
-    weight: u32,
-    interval: u32,
-    uri: String,
-    actions: Vec<Action>,
-    timestamp: f64,
+    pub identity: String,
+    pub uri: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct AnnouncementParams {
+    pub weight: u32,
+    pub interval: u32,
+    pub timestamp: f64,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
-struct Action {
-    path: String, // Eg product.sku.fetch
-    version: u32, // Eg 1
-    flags: Vec<Flag>,
-    sector: String,
-    envelopes: Vec<String>,
+pub struct AnnouncementBody {
+    pub info: ServiceInfo,
+    pub params: AnnouncementParams,
+    pub actions: Vec<Action>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct Action {
+    pub path: String,    // Eg product.sku.fetch
+    pub version: u32,    // Eg 1
+    pub pathver: String, // Eg product.sku.fetch~1
+    pub flags: Vec<Flag>,
+    pub sector: String,
+    pub envelopes: Vec<String>,
     packet_section: PacketSection,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-enum Flag {
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub enum Flag {
     NoAuth,
     Timeout(u32), // eg t600
     Other(String),
     CrudOp(CrudOp),
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-enum CrudOp {
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub enum CrudOp {
     Create,
     Read,
     Update,
     Delete,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 enum PacketSection {
     V3,
     V4,
@@ -106,7 +117,7 @@ impl From<serde_json::Error> for ServiceInfoParseError {
     }
 }
 
-impl ServiceInfo {
+impl AnnouncementBody {
     pub fn parse(v: &str) -> Result<Self, ServiceInfoParseError> {
         let value: serde_json::Value = serde_json::from_str(v)?;
 
@@ -130,7 +141,8 @@ impl ServiceInfo {
 
         let identity = array[1]
             .as_str()
-            .ok_or_else(|| ServiceInfoParseError::MissingField("identity"))?;
+            .ok_or_else(|| ServiceInfoParseError::MissingField("identity"))?
+            .to_string();
 
         let v3_sector = array[2]
             .as_str()
@@ -177,13 +189,14 @@ impl ServiceInfo {
         }
         parse_v3_actions(v3_actions, &v3_sector, &v3_envelopes, &mut actions)?;
 
-        Ok(ServiceInfo {
-            identity: identity.to_string(),
-            weight,
-            interval,
-            uri,
+        Ok(AnnouncementBody {
+            info: ServiceInfo { identity, uri },
+            params: AnnouncementParams {
+                weight,
+                interval,
+                timestamp,
+            },
             actions,
-            timestamp,
         })
     }
 }
@@ -237,9 +250,16 @@ fn parse_v3_actions(
                                 _ => 1,
                             };
 
+                            // lowercase and replace slashes with .
+                            let path = format!("{}.{}", namespace, name)
+                                .to_lowercase()
+                                .replace('/', ".");
+
+                            let pathver = format!("{}~{}", path, version);
                             let action = Action {
-                                path: format!("{}.{}", namespace, name),
+                                path,
                                 version,
+                                pathver,
                                 flags: flags
                                     .split(',')
                                     .filter(|s| !s.is_empty())
@@ -294,9 +314,14 @@ fn parse_v4_actions(
     for (namespace, name, _compat, ver, flags, envelopes, sector) in
         izip!(namespaces, names, compats, acvers, flagss, envelopess, sectors)
     {
+        let path = format!("{}.{}", namespace, name)
+            .to_lowercase()
+            .replace('/', ".");
+        let pathver = format!("{}~{}", path, ver);
         let action = Action {
-            path: format!("{}.{}", namespace, name),
+            path,
             version: ver,
+            pathver,
             flags: flags
                 .split(',')
                 .filter(|s| !s.is_empty())
@@ -442,7 +467,7 @@ mod tests {
 
     #[test]
     fn test_parse() {
-        let info = ServiceInfo::parse(include_str!(
+        let info = AnnouncementBody::parse(include_str!(
             "../../samples/service_info_packet_v3_data.json"
         ))
         .unwrap();
@@ -450,7 +475,7 @@ mod tests {
         // Does it match our reference?
         assert_eq!(
             info,
-            serde_json::from_str::<ServiceInfo>(include_str!(
+            serde_json::from_str::<AnnouncementBody>(include_str!(
                 "../../samples/service_info_packet_v3_data_parsed.json"
             ))
             .unwrap()
