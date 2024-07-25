@@ -1,8 +1,10 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use list::ListCommand;
+use request::RequestCommand;
 use scamp::{config::Config, discovery::service_registry::ServiceRegistry};
 mod list;
+mod request;
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -20,12 +22,15 @@ enum Commands {
         #[command(subcommand)]
         command: ListCommand,
     },
+    /// Make a request to a service
+    Request(RequestCommand),
 }
 
 impl Commands {
     fn run(&self, config: &Config, registry: &ServiceRegistry) -> Result<()> {
         match self {
             Commands::List { command } => command.run(config, registry),
+            Commands::Request(command) => command.run(config, registry),
         }
     }
 }
