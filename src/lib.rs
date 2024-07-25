@@ -5,7 +5,7 @@ pub mod discovery;
 // pub(crate) mod common;
 // pub mod error;
 // pub mod message;
-// pub mod transport;
+pub mod transport;
 
 // pub use crate::action::Action;
 // pub use crate::agent::Agent;

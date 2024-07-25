@@ -27,18 +27,19 @@ enum Commands {
 }
 
 impl Commands {
-    fn run(&self, config: &Config, registry: &ServiceRegistry) -> Result<()> {
+    async fn run(&self, config: &Config, registry: &ServiceRegistry) -> Result<()> {
         match self {
             Commands::List { command } => command.run(config, registry),
-            Commands::Request(command) => command.run(config, registry),
+            Commands::Request(command) => command.run(config, registry).await,
         }
     }
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let args = Args::parse();
 
     let config = Config::new(args.config)?;
     let registry = ServiceRegistry::new_from_cache(&config)?;
-    args.command.run(&config, &registry)
+    args.command.run(&config, &registry).await
 }

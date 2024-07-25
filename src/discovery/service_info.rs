@@ -33,7 +33,7 @@ pub struct Action {
     pub flags: Vec<Flag>,
     pub sector: String,
     pub envelopes: Vec<String>,
-    packet_section: PacketSection,
+    pub packet_section: PacketSection,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -53,7 +53,7 @@ pub enum CrudOp {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
-enum PacketSection {
+pub enum PacketSection {
     V3,
     V4,
 }

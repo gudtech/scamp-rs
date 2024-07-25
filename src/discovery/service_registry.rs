@@ -76,4 +76,15 @@ impl ServiceRegistry {
             .get(pathver)
             .map(|entries| entries.iter().collect())
     }
+
+    pub fn get_action(&self, pathver: &str) -> Option<&ActionEntry> {
+        self.actions_by_namever.get(pathver).and_then(|entries| {
+            if entries.is_empty() {
+                None
+            } else {
+                let random_index = rand::random::<usize>() % entries.len();
+                entries.get(random_index)
+            }
+        })
+    }
 }
