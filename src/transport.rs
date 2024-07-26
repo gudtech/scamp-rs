@@ -9,11 +9,6 @@ use tokio::io::BufReader;
 pub mod beepish;
 pub mod mock;
 
-pub struct Request<'a> {
-    pub action: &'a ActionEntry,
-    pub headers: BTreeMap<String, String>,
-    pub body: Box<dyn AsyncRead + Unpin>,
-}
 pub struct Response {
     pub headers: BTreeMap<String, String>,
     pub body: Box<dyn AsyncRead + Unpin>,

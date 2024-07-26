@@ -57,24 +57,27 @@ impl RequestCommand {
         for header in &self.header {
             let mut parts = header.splitn(2, ':');
             if let (Some(key), Some(value)) = (parts.next(), parts.next()) {
-                headers.insert(key.trim().to_string().to_lowercase(), value.trim().to_string());
+                headers.insert(
+                    key.trim().to_string().to_lowercase(),
+                    value.trim().to_string(),
+                );
             }
         }
 
         // Get a readable stream for the request body from one of the three sources we support
         let is_pipe = !atty::is(atty::Stream::Stdin);
-        let mut body: tokio::io::BufReader<Box<dyn tokio::io::AsyncRead + Unpin>> =
+        let mut body: tokio::io::BufReader<Box<dyn tokio::io::AsyncRead + Send + Unpin>> =
             if let Some(file) = self.file.clone() {
                 let file = tokio::fs::File::open(file).await?;
-                tokio::io::BufReader::new(Box::new(file) as Box<dyn tokio::io::AsyncRead + Unpin>)
+                tokio::io::BufReader::new(Box::new(file))
             } else if let Some(body) = &self.body {
-                tokio::io::BufReader::new(
-                    Box::new(std::io::Cursor::new(body.clone().into_bytes())) as Box<dyn tokio::io::AsyncRead + Unpin>
-                )
+                tokio::io::BufReader::new(Box::new(std::io::Cursor::new(body.clone().into_bytes())))
             } else if is_pipe {
-                tokio::io::BufReader::new(Box::new(tokio::io::stdin()) as Box<dyn tokio::io::AsyncRead + Unpin>)
+                tokio::io::BufReader::new(Box::new(tokio::io::stdin()))
             } else {
-                return Err(anyhow::anyhow!("Either --file or --body or pipe must be specified"));
+                return Err(anyhow::anyhow!(
+                    "Either --file or --body or pipe must be specified"
+                ));
             };
 
         // Peek at the first few bytes to see if we can auto-detect the content type
@@ -82,13 +85,15 @@ impl RequestCommand {
 
         if !headers.contains_key("content-type") {
             if buf.len() > 0 && buf[0] == b'{' {
-                println!("  * Auto-detected content type as application/json. Override with -H flag");
+                println!(
+                    "  * Auto-detected content type as application/json. Override with -H flag"
+                );
                 headers.insert("content-type".to_string(), "application/json".to_string());
             }
             // Add more content type detection logic based on the peeked bytes if needed
         }
 
-        let client = scamp::transport::beepish::BeepishClient::new();
+        let client = scamp::transport::beepish::BeepishClient::new(&config);
 
         use scamp::transport::Client;
         let mut response = client.request(action, headers, Box::new(body)).await?;

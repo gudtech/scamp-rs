@@ -26,11 +26,13 @@ impl ServiceRegistry {
     pub fn new_from_cache(config: &Config) -> Result<Self> {
         let mut actions_by_namever: BTreeMap<String, Vec<ActionEntry>> = BTreeMap::new();
         // this is an error if we don't have a cache path
-        let cache_path = config
-            .get("discovery.cache_path")
-            .ok_or(anyhow::anyhow!("No cache path found"))?;
+        let cache_path: String = match config.get("discovery.cache_path") {
+            Some(Ok(path)) => path,
+            Some(Err(e)) => return Err(anyhow::anyhow!("Failed to get cache path: {}", e)),
+            None => return Err(anyhow::anyhow!("No cache path found")),
+        };
 
-        let mut file = File::open(cache_path).map_err(|e| {
+        let mut file = File::open(&cache_path).map_err(|e| {
             anyhow::anyhow!("Failed to open discovery cache file {}, {}", cache_path, e)
         })?;
 

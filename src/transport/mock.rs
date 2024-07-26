@@ -1,6 +1,6 @@
 use crate::discovery::ActionEntry;
 
-use super::{Client, Request, Response};
+use super::{Client, Response};
 use anyhow::Result;
 use std::{collections::BTreeMap, io::Cursor, sync::Mutex};
 use tokio::io::{AsyncRead, AsyncReadExt, BufReader};
