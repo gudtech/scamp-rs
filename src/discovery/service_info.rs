@@ -3,12 +3,21 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{from_value, Map, Value};
-use std::fmt;
+use std::{fmt, net::SocketAddr};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct ServiceInfo {
     pub identity: String,
     pub uri: String,
+}
+
+impl ServiceInfo {
+    pub fn socket_addr(&self) -> SocketAddr {
+        let addr = self.uri.split("://").nth(1).unwrap();
+        let host = addr.split(":").nth(0).unwrap();
+        let port = addr.split(":").nth(1).unwrap();
+        SocketAddr::new(host.parse().unwrap(), port.parse().unwrap())
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]

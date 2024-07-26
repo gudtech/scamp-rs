@@ -1,132 +1,393 @@
+use anyhow::{anyhow, Context, Result};
+use futures::{SinkExt, StreamExt};
+use serde_json::{self, Value};
 use std::collections::{BTreeMap, HashMap};
-
-use crate::discovery::ActionEntry;
-use crate::transport::{Client, Request, Response};
-use anyhow::Result;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::net::TcpStream;
+use tokio::sync::{mpsc, oneshot, Mutex};
+use tokio::time::{interval, timeout};
+use tokio_native_tls::{native_tls, TlsConnector, TlsStream};
 
-use super::packet;
+use super::proto::{Packet, PacketHeader, PacketType};
+use crate::config::Config;
+use crate::discovery::{ActionEntry, ServiceInfo};
+use crate::transport::{Client, Request, Response};
+
+const MAX_FLOW: usize = 65536;
 
 pub struct BeepishClient {
-    connection: ClientConnection,
+    config: Config,
+    connections: Arc<Mutex<HashMap<String, Arc<ClientConnection>>>>,
 }
 
 impl BeepishClient {
-    pub fn new() -> Self {
+    pub fn new(config: &Config) -> Self {
         BeepishClient {
-            connection: ClientConnection::new(),
+            config: config.clone(),
+            connections: Arc::new(Mutex::new(HashMap::new())),
         }
     }
-    // pub async fn connect(address: &str) -> Result<Self, std::io::Error> {
-    //     // Establish TLS connection and initialize ClientConnection
-    //     let stream = TcpStream::connect(address).await?;
-    //     let connection = ClientConnection::new(stream);
-    //     Ok(BeepishClient { connection })
-    // }
+
+    async fn get_or_create_connection(
+        &self,
+        service_info: &ServiceInfo,
+    ) -> Result<Arc<ClientConnection>> {
+        let mut connections = self.connections.lock().await;
+        if !connections.contains_key(&service_info.uri) {
+            let connection = ClientConnection::connect(&self.config, service_info).await?;
+            connections.insert(service_info.uri.clone(), Arc::new(connection));
+        }
+        Ok(Arc::clone(connections.get(&service_info.uri).unwrap()))
+    }
 }
+
 impl Client for BeepishClient {
     async fn request<'a>(
         &self,
         action: &'a ActionEntry,
         headers: BTreeMap<String, String>,
-        body: Box<dyn AsyncRead + Unpin>,
+        body: Box<dyn AsyncRead + Unpin + Send>,
     ) -> Result<Response> {
-        // // Send request and wait for response
-        // let request_packet = Message::new(PacketHeader::Request, request.body);
-        // self.connection.send_message(request_packet).await?;
+        let connection = self.get_or_create_connection(&action.service_info).await?;
 
-        // // Stream the body to the service
-        // let mut buffer = [0; 1024];
-        // let mut body = Box::new(tokio::io::BufReader::new(&request.body[..])) as Box<dyn AsyncRead + Unpin>;
-        // loop {
-        //     match body.read(&mut buffer).await {
-        //         Ok(0) => break,
-        //         Ok(bytes_read) => {
-        //             let data_packet = Message::new(PacketHeader::Data, buffer[..bytes_read].to_vec());
-        //             self.connection.send_message(data_packet).await?;
-        //         }
-        //         Err(e) => {
-        //             eprintln!("Error reading body: {}", e);
-        //             return Err(e);
-        //         }
-        //     }
-        // }
+        let (response_tx, response_rx) = oneshot::channel();
 
-        // // Receive the response packet
-        // let response_packet = self.connection.on_packet().await?;
-        // let response = Response::from_packet(response_packet);
+        let request = Message::new(PacketHeader::Request(headers), body);
+        connection.send_message(request, response_tx).await?;
 
-        // // Print the response headers
-        // let mut headers = BTreeMap::new();
-        // headers.insert("content-type".to_string(), "application/json".to_string());
-        // println!("    * Response headers: {:?}", headers);
-
-        // Ok(response)
-        unimplemented!()
+        match tokio::time::timeout(Duration::from_secs(30), response_rx).await {
+            Ok(Ok(response)) => Ok(response),
+            Ok(Err(_)) => Err(anyhow!("Failed to receive response")),
+            Err(_) => Err(anyhow!("Request timed out")),
+        }
     }
 }
 
 struct ClientConnection {
-    incoming: HashMap<u64, Message>,
-    outgoing: HashMap<u64, Message>,
+    config: Config,
+    stream: Arc<Mutex<TlsStream<TcpStream>>>,
+    incoming: HashMap<u64, IncomingMessage>,
+    outgoing: HashMap<u64, OutgoingMessage>,
     next_incoming_id: u64,
     next_outgoing_id: u64,
+    heartbeat_interval: Option<Duration>,
+    last_heartbeat: Instant,
 }
 
 impl ClientConnection {
-    fn new() -> Self {
-        ClientConnection {
+    async fn connect(config: &Config, service_info: &ServiceInfo) -> Result<Self> {
+        let tls = native_tls::TlsConnector::builder()
+            .danger_accept_invalid_certs(true) // Note: Only use this for testing!
+            .build()?;
+        let connector = TlsConnector::from(tls);
+
+        let addr = service_info.socket_addr();
+
+        // Add timeout to TCP connection
+        let stream = timeout(Duration::from_secs(30), TcpStream::connect(addr))
+            .await
+            .context("TCP connection timed out")?
+            .context("Failed to connect to TCP stream")?;
+
+        // Add timeout to TLS connection
+        let mut tls_stream = timeout(
+            Duration::from_secs(30),
+            connector.connect("foo.com", stream),
+        )
+        .await
+        .context("TLS connection timed out")?
+        .context("Failed to establish TLS connection")?;
+
+        // Add timeout to BEEPish handshake
+        timeout(Duration::from_secs(10), async {
+            tls_stream.write_all(b"BEEP\r\n").await?;
+
+            let mut response = [0u8; 6];
+            tls_stream.read_exact(&mut response).await?;
+            if &response != b"BEEP\r\n" {
+                return Err(anyhow!("Invalid BEEPish handshake response"));
+            }
+            Ok::<_, anyhow::Error>(())
+        })
+        .await
+        .context("BEEPish handshake timed out")??;
+
+        let mut connection = ClientConnection {
+            config: config.clone(),
+            stream: Arc::new(Mutex::new(tls_stream)),
             incoming: HashMap::new(),
             outgoing: HashMap::new(),
             next_incoming_id: 0,
             next_outgoing_id: 0,
-        }
+            heartbeat_interval: None,
+            last_heartbeat: Instant::now(),
+        };
+
+        let heartbeat_interval = config
+            .get::<u64>("beepish.heartbeat_interval")
+            .unwrap_or(Ok(10))?;
+
+        connection.set_heartbeat(Duration::from_millis(heartbeat_interval))?;
+
+        Ok(connection)
     }
 
-    fn send_message(&mut self, msg: Message) {
-        let id = self.next_outgoing_id;
-        self.next_outgoing_id += 1;
+    // Removed beepish_handshake method
 
-        self.outgoing.insert(id, msg);
+    fn set_heartbeat(&mut self, interval: Duration) -> Result<()> {
+        self.heartbeat_interval = Some(interval);
 
-        unimplemented!()
-        // let header_packet = packet::Packet {
-        //     packet_type: packet::PacketType::Header,
-        //     msg_no: id,
-        //     packet_header: Some(msg.header.clone()),
-        //     body: Vec::new(),
-        // };
-        // TODO: Send header packet
+        let stream = Arc::clone(&self.stream);
+        let mut interval_timer = interval(interval);
 
-        // TODO: Send data packets as message is consumed
+        tokio::spawn(async move {
+            loop {
+                interval_timer.tick().await;
+                let mut stream = stream.lock().await;
+                if let Err(e) = Self::send_ping(&mut *stream).await {
+                    log::error!("Failed to send heartbeat: {}", e);
+                    break;
+                }
+            }
+        });
 
-        // TODO: Send EOF or TXERR packet when message ends
+        Ok(())
     }
 
-    fn on_packet(&mut self, packet_type: packet::PacketType, msg_no: u64, payload: &[u8]) {
-        use packet::PacketType;
-        match packet_type {
-            PacketType::Header => {
-                // TODO: Handle incoming header packet
-            }
-            PacketType::Data => {
-                // TODO: Handle incoming data packet
-            }
-            PacketType::Eof => {
-                // TODO: Handle incoming EOF packet
-            }
-            PacketType::Txerr => {
-                // TODO: Handle incoming TXERR packet
-            }
-            PacketType::Ack => {
-                // TODO: Handle incoming ACK packet
+    async fn send_ping(stream: &mut TlsStream<TcpStream>) -> Result<()> {
+        Self::send_packet(stream, PacketType::Ping, 0, &[]).await
+    }
+
+    async fn handle_heartbeat(&mut self) -> Result<()> {
+        if let Some(interval) = self.heartbeat_interval {
+            if self.last_heartbeat.elapsed() >= interval {
+                self.send_ping().await?;
+                self.last_heartbeat = Instant::now();
             }
         }
+        Ok(())
+    }
+
+    async fn handle_pong(&mut self) -> Result<()> {
+        self.last_heartbeat = Instant::now();
+        Ok(())
+    }
+
+    async fn send_message(
+        &mut self,
+        msg: Message,
+        response_tx: oneshot::Sender<Response>,
+    ) -> Result<()> {
+        let id = {
+            let mut outgoing = self.outgoing.lock().await;
+            let id = self.next_outgoing_id;
+            self.next_outgoing_id += 1;
+
+            outgoing.insert(
+                id,
+                OutgoingMessage {
+                    message: msg,
+                    response_tx: Some(response_tx),
+                    sent: 0,
+                    acked: 0,
+                },
+            );
+
+            id
+        };
+
+        self.send_packet(PacketType::Header, id, &serde_json::to_vec(&msg.header)?)
+            .await?;
+
+        // Start sending data packets
+        self.send_data_packets(id).await?;
+
+        Ok(())
+    }
+
+    async fn send_data_packets(&mut self, id: u64) -> Result<()> {
+        let outgoing = self
+            .outgoing
+            .get_mut(&id)
+            .ok_or_else(|| anyhow!("Message not found"))?;
+        let mut buffer = [0u8; 1024];
+
+        loop {
+            match outgoing.message.body.read(&mut buffer).await {
+                Ok(0) => break, // EOF
+                Ok(n) => {
+                    self.send_packet(PacketType::Data, id, &buffer[..n]).await?;
+                    outgoing.sent += n;
+                    if outgoing.sent - outgoing.acked >= MAX_FLOW {
+                        break; // Flow control: pause sending
+                    }
+                }
+                Err(e) => return Err(e.into()),
+            }
+        }
+
+        if outgoing.message.body.read(&mut buffer).await? == 0 {
+            // All data sent, send EOF
+            self.send_packet(PacketType::Eof, id, &[]).await?;
+        }
+
+        Ok(())
+    }
+
+    async fn send_packet(
+        &mut self,
+        packet_header: Option<PacketHeader>,
+        packet_type: PacketType,
+        msg_no: u64,
+        payload: &[u8],
+    ) -> Result<()> {
+        let packet = Packet {
+            packet_type,
+            msg_no,
+            body: payload.to_vec(),
+            packet_header,
+        };
+        let mut stream = self.stream.lock().await;
+        packet.write(&mut *stream).await?;
+        Ok(())
+    }
+
+    async fn handle_incoming_packet(&mut self, packet: Packet) -> Result<()> {
+        match packet.packet_type {
+            PacketType::Header => self.handle_header_packet(packet).await?,
+            PacketType::Data => self.handle_data_packet(packet).await?,
+            PacketType::Eof => self.handle_eof_packet(packet).await?,
+            PacketType::Txerr => self.handle_txerr_packet(packet).await?,
+            PacketType::Ack => self.handle_ack_packet(packet).await?,
+            PacketType::Ping => {
+                self.send_packet(PacketType::Pong, packet.msg_no, &[])
+                    .await?
+            }
+            PacketType::Pong => self.handle_pong().await?,
+        }
+        Ok(())
+    }
+
+    async fn handle_header_packet(&mut self, packet: Packet) -> Result<()> {
+        let header: PacketHeader = serde_json::from_slice(&packet.payload)?;
+        let incoming = IncomingMessage {
+            header,
+            body: Vec::new(),
+            received: 0,
+            acked: 0,
+        };
+        self.incoming.insert(packet.msg_no, incoming);
+        Ok(())
+    }
+
+    async fn handle_data_packet(&mut self, packet: Packet) -> Result<()> {
+        let incoming = self
+            .incoming
+            .get_mut(&packet.msg_no)
+            .ok_or_else(|| anyhow!("Received DATA for unknown message"))?;
+        incoming.body.extend_from_slice(&packet.payload);
+        incoming.received += packet.payload.len();
+
+        // Send ACK if we've received a significant amount of data
+        if incoming.received - incoming.acked >= MAX_FLOW / 2 {
+            self.send_packet(
+                PacketType::Ack,
+                packet.msg_no,
+                &incoming.received.to_le_bytes(),
+            )
+            .await?;
+            incoming.acked = incoming.received;
+        }
+        Ok(())
+    }
+
+    async fn handle_eof_packet(&mut self, packet: Packet) -> Result<()> {
+        let incoming = self
+            .incoming
+            .remove(&packet.msg_no)
+            .ok_or_else(|| anyhow!("Received EOF for unknown message"))?;
+
+        let response = Response {
+            headers: incoming.header.into_headers(),
+            body: incoming.body,
+        };
+
+        if let Some(outgoing) = self.outgoing.remove(&packet.msg_no) {
+            if let Some(response_tx) = outgoing.response_tx {
+                response_tx
+                    .send(response)
+                    .map_err(|_| anyhow!("Failed to send response"))?;
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn handle_txerr_packet(&mut self, packet: Packet) -> Result<()> {
+        let error_message = String::from_utf8(packet.payload)?;
+        log::error!(
+            "Received TXERR for message {}: {}",
+            packet.msg_no,
+            error_message
+        );
+
+        if let Some(outgoing) = self.outgoing.remove(&packet.msg_no) {
+            if let Some(response_tx) = outgoing.response_tx {
+                let error_response = Response {
+                    headers: BTreeMap::new(),
+                    body: error_message.into_bytes(),
+                };
+                response_tx
+                    .send(error_response)
+                    .map_err(|_| anyhow!("Failed to send error response"))?;
+            }
+        }
+
+        self.incoming.remove(&packet.msg_no);
+        Ok(())
+    }
+
+    async fn handle_ack_packet(&mut self, packet: Packet) -> Result<()> {
+        let acked = u64::from_le_bytes(
+            packet
+                .payload
+                .try_into()
+                .map_err(|_| anyhow!("Invalid ACK payload"))?,
+        );
+        if let Some(outgoing) = self.outgoing.get_mut(&packet.msg_no) {
+            outgoing.acked = acked;
+            if outgoing.sent - outgoing.acked < MAX_FLOW {
+                // Resume sending if we were paused due to flow control
+                self.send_data_packets(packet.msg_no).await?;
+            }
+        }
+        Ok(())
     }
 }
 
 struct Message {
-    header: packet::PacketHeader,
-    // TODO: Add fields to track message state
+    header: PacketHeader,
+    body: Box<dyn AsyncRead + Unpin + Send>,
+}
+
+impl Message {
+    fn new(header: PacketHeader, body: Box<dyn AsyncRead + Unpin + Send>) -> Self {
+        Message { header, body }
+    }
+}
+
+struct IncomingMessage {
+    header: PacketHeader,
+    body: Vec<u8>,
+    received: usize,
+    acked: usize,
+}
+
+struct OutgoingMessage {
+    message: Message,
+    response_tx: Option<oneshot::Sender<Response>>,
+    sent: usize,
+    acked: usize,
 }

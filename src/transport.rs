@@ -24,7 +24,7 @@ pub trait Client {
         &self,
         action: &'a ActionEntry,
         headers: BTreeMap<String, String>,
-        body: Box<dyn AsyncRead + Unpin>,
+        body: Box<dyn AsyncRead + Unpin + Send>,
     ) -> Result<Response>;
 }
 

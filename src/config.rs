@@ -4,6 +4,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 struct ConfElement {
@@ -12,8 +13,9 @@ struct ConfElement {
     children: BTreeMap<String, ConfElement>,
 }
 
+#[derive(Clone)]
 pub struct Config {
-    root: ConfElement,
+    root: Arc<ConfElement>,
 }
 
 pub struct ConfigPath {
@@ -42,14 +44,16 @@ impl Config {
         let config_contents = std::fs::read_to_string(&config_path.path)?;
         let root = Self::parse_config(&config_contents, config_path.conf_rewrites)?;
 
-        Ok(Self { root })
+        Ok(Self {
+            root: Arc::new(root),
+        })
     }
 
-    pub fn get(&self, key: &str) -> Option<&str> {
+    pub fn get<T: std::str::FromStr>(&self, key: &str) -> Option<Result<T, T::Err>> {
         match self.root.get(key) {
             Some(ConfElement {
                 value: Some(value), ..
-            }) => Some(value),
+            }) => Some(value.parse()),
             _ => None,
         }
     }

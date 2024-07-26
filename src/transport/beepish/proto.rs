@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::{Read, Write};
+use tokio::io::AsyncWriteExt;
 
 const MAX_PACKET_SIZE: usize = 131072;
 
@@ -11,6 +12,8 @@ pub enum PacketType {
     Eof,
     Txerr,
     Ack,
+    Ping,
+    Pong,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -48,13 +51,18 @@ pub struct Packet {
 }
 
 impl Packet {
-    fn write(&self, writer: &mut dyn Write) -> std::io::Result<usize> {
+    pub async fn write<W>(&self, writer: &mut W) -> std::io::Result<usize>
+    where
+        W: AsyncWriteExt + Unpin,
+    {
         let packet_type_bytes: &[u8] = match self.packet_type {
             PacketType::Header => b"HEADER",
             PacketType::Data => b"DATA",
             PacketType::Eof => b"EOF",
             PacketType::Txerr => b"TXERR",
             PacketType::Ack => b"ACK",
+            PacketType::Ping => b"PING",
+            PacketType::Pong => b"PONG",
         };
 
         let mut body_buf = Vec::new();
@@ -70,9 +78,9 @@ impl Packet {
             self.msg_no,
             body_buf.len()
         );
-        writer.write_all(header_bytes.as_bytes())?;
-        writer.write_all(&body_buf)?;
-        writer.write_all(b"END\r\n")?;
+        writer.write_all(header_bytes.as_bytes()).await?;
+        writer.write_all(&body_buf).await?;
+        writer.write_all(b"END\r\n").await?;
 
         Ok(header_bytes.len() + body_buf.len() + 5)
     }

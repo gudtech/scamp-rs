@@ -3,6 +3,6 @@ mod client;
 ///! The purpose of which is to provide for managing multiple concurrent
 ///! Requests over a single tcp connection without head-of-line blocking
 ///! More information can be found at https://www.beepcore.org/
-mod packet;
+mod proto;
 
 pub use client::BeepishClient;
