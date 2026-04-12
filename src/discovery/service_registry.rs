@@ -2,6 +2,7 @@ use std::{collections::BTreeMap, fs::File};
 
 use anyhow::Result;
 
+use crate::auth::authorized_services::AuthorizedServices;
 use crate::config::Config;
 
 use super::{
@@ -44,6 +45,21 @@ impl ServiceRegistry {
             None => return Err(anyhow::anyhow!("No cache path found")),
         };
 
+        // Load authorized_services (Perl ServiceInfo.pm:112-113)
+        let auth = match config.get::<String>("bus.authorized_services") {
+            Some(Ok(path)) => match AuthorizedServices::load(&path) {
+                Ok(a) => a,
+                Err(e) => {
+                    log::warn!("Failed to load authorized_services from {}: {}", path, e);
+                    AuthorizedServices::empty()
+                }
+            },
+            _ => {
+                log::debug!("No bus.authorized_services configured");
+                AuthorizedServices::empty()
+            }
+        };
+
         let mut file = File::open(&cache_path).map_err(|e| {
             anyhow::anyhow!("Failed to open discovery cache file {}, {}", cache_path, e)
         })?;
@@ -52,17 +68,27 @@ impl ServiceRegistry {
         for announcement_packet in iterator {
             let packet = announcement_packet?;
             if !packet.signature_is_valid() {
+                log::debug!("Skipping announcement with invalid signature: {}", packet.body.info.identity);
                 continue;
             }
 
             let AnnouncementPacket { body, .. } = packet;
 
+            let fingerprint = body.info.fingerprint.as_deref().unwrap_or("");
+
             for action in &body.actions {
+                // Check authorization (Perl ServiceInfo.pm:141-167)
+                let authorized = auth.is_authorized(
+                    fingerprint,
+                    &action.sector,
+                    &action.path,
+                );
+
                 let entry = ActionEntry {
                     service_info: body.info.clone(),
                     announcement_params: body.params.clone(),
                     action: action.clone(),
-                    authorized: true,
+                    authorized,
                 };
 
                 // Primary key: sector:action.vVERSION
@@ -122,14 +148,14 @@ impl ServiceRegistry {
     }
 
     /// Find a random action entry matching the key.
-    /// Excludes weight=0 services (graceful shutdown).
+    /// Excludes weight=0 services and unauthorized actions.
     pub fn get_action(&self, key: &str) -> Option<&ActionEntry> {
         self.actions_by_key
             .get(&key.to_lowercase())
             .and_then(|entries| {
                 let active: Vec<_> = entries
                     .iter()
-                    .filter(|e| e.announcement_params.weight > 0)
+                    .filter(|e| e.announcement_params.weight > 0 && e.authorized)
                     .collect();
                 if active.is_empty() {
                     None
@@ -168,6 +194,7 @@ impl ServiceRegistry {
                     .iter()
                     .filter(|e| {
                         e.announcement_params.weight > 0
+                            && e.authorized
                             && e.action.envelopes.iter().any(|env| env == envelope)
                     })
                     .collect();
