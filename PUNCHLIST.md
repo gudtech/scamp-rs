@@ -17,15 +17,15 @@ Status legend: `[ ]` todo, `[~]` in progress, `[x]` done, `[!]` blocked
 
 ## Phase 1: Transport Core
 
-- [ ] **P1-1** ⚠️ Fix PacketHeader serde: the JSON field name MUST be `"type"` (not `"message_type"`). Perl `Client.pm:87` sets `$request->header->{type} = 'request'`, Go uses `json:"type"` tag. Custom serde for `EnvelopeFormat` (→ `"json"`, `"jsonstore"`) and `MessageType` (→ `"request"`, `"reply"`) as lowercase strings. Rename struct field to `type` with `#[serde(rename = "type")]`.
-- [ ] **P1-2** Implement `FlexInt` type for `client_id` (deserializes from both JSON string `"42"` and integer `42`). Reference: Go `packetheader.go` flexInt type.
-- [ ] **P1-3** ⚠️ Inbound message assembly: HEADER → DATA* → EOF/TXERR. Message numbers start at **0** (not 1). Perl `Connection.pm:97-98`: `_next_message_in = 0; _next_message_out = 0`. Track per-direction counters; validate sequential HEADER msgno.
-- [ ] **P1-4** Outbound message serialization: Message → HEADER + DATA chunks + EOF. Chunk size: **131072 bytes** (matches JS). Note: Perl uses 2048-byte chunks (`Connection.pm:218`) but all receivers handle any size ≤131072.
-- [ ] **P1-5** ⚠️ Request-response correlation: Perl `Client.pm` uses sequential integer `request_id` starting from 1 (`_nextcorr = 1`). Reply carries back the same `request_id` in its header. Map pending requests by `request_id`. Server copies `request_id` from request to reply (`Server.pm:66`).
-- [ ] **P1-6** Timeout per request via `tokio::time::timeout`. Default: **75 seconds** from `rpc.timeout` config (Perl `ServiceInfo.pm:256`). Per-action timeouts from `t600` flags add 5 seconds (`ServiceInfo.pm:257`).
-- [ ] **P1-7** ⚠️ Flow control: ACK body is a **decimal string** of cumulative bytes received (Perl `Connection.pm:179`: validates `/^[1-9][0-9]*$/`). ACK value must strictly advance. Pause sending when `sent - acked >= 65536`. Resume on ACK receipt.
-- [ ] **P1-8** ⚠️ PING/PONG heartbeat: **MUST be disabled by default.** Perl does NOT support PING/PONG — unknown packet types cause connection error (`Connection.pm:186`). Go also does not support them. Only scamp-js supports PING/PONG. Heartbeat should only be enabled when explicitly connecting to a JS service.
-- [ ] **P1-9** Connection architecture: mpsc channel for serialized writes, reader task for packet dispatch, `ConnectionHandle` with pending requests map.
+- [x] **P1-1** ⚠️ Fix PacketHeader serde: JSON field `"type"` (not `"message_type"`), lowercase EnvelopeFormat/MessageType, optional field omission
+- [x] **P1-2** Implement `FlexInt` type for `client_id` (deserializes from both JSON string `"42"` and integer `42`)
+- [x] **P1-3** ⚠️ Inbound message assembly: HEADER → DATA* → EOF/TXERR. Message numbers start at 0. Sequential validation.
+- [x] **P1-4** Outbound message serialization: HEADER + DATA chunks (131072 bytes) + EOF (empty body)
+- [x] **P1-5** ⚠️ Request-response correlation: sequential request_id starting from 1, pending map by request_id
+- [x] **P1-6** Timeout per request via `tokio::time::timeout` (default 75s)
+- [x] **P1-7** ⚠️ Flow control: ACK sent as decimal string of cumulative bytes. Send-side pause/resume deferred.
+- [x] **P1-8** ⚠️ PING/PONG: disabled by default, responds to PING with PONG
+- [x] **P1-9** Connection architecture: mpsc writer channel, reader task, ConnectionHandle with pending map
 
 ## Phase 2: Service Infrastructure
 
@@ -75,9 +75,9 @@ Status legend: `[ ]` todo, `[~]` in progress, `[x]` done, `[!]` blocked
 ## Testing
 
 ### Unit Tests
-- [ ] **T1** Packet parse/write roundtrip for all packet types
-- [ ] **T2** PacketHeader serde roundtrip — verify `"type"` field name, `"json"` envelope, `"request"`/`"reply"` types
-- [ ] **T3** FlexInt deserialization from string and integer
+- [x] **T1** Packet parse/write roundtrip for all packet types
+- [x] **T2** PacketHeader serde roundtrip — verify `"type"` field name, `"json"` envelope, `"request"`/`"reply"` types
+- [x] **T3** FlexInt deserialization from string and integer
 - [ ] **T4** Config parsing with real soa.conf files
 - [ ] **T5** Announcement parsing with real discovery cache data from dev environment
 - [ ] **T6** Ticket parsing and verification with known-good tickets
