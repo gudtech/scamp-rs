@@ -4,15 +4,17 @@
 # Build:
 #   docker build --platform linux/amd64 -f Dockerfile.interop-test -t scamp-rs-test .
 #
-# Run interactively:
-#   docker run --rm -it --network gtnet \
-#     -v ~/GT/backplane:/backplane:ro \
-#     scamp-rs-test list actions
-#
-# Test request to Perl service:
+# Test as client (request to Perl):
 #   docker run --rm --network gtnet \
 #     -v ~/GT/backplane:/backplane:ro \
+#     -e SCAMP_CONFIG=/backplane/etc/soa.conf \
 #     scamp-rs-test request --action "api.status.health_check~1" --body '{}'
+#
+# Test as server (Perl calls Rust):
+#   docker run --rm -it --network gtnet \
+#     -v ~/GT/backplane:/backplane:ro \
+#     -e SCAMP_CONFIG=/backplane/etc/soa.conf \
+#     scamp-rs-test serve --key /backplane/devkeys/dev.key --cert /backplane/devkeys/dev.crt
 
 FROM --platform=linux/amd64 rust:1.82-slim-bookworm AS builder
 
