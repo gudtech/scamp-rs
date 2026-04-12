@@ -67,7 +67,7 @@ mod tests {
 
     #[test]
     fn test_cache_file_announcement_iterator() {
-        let cache_file = File::open("samples/discovery-cache.txt").unwrap();
+        let cache_file = File::open("samples/discovery_cache_file").unwrap();
         let iterator = CacheFileAnnouncementIterator::new(cache_file);
         for announcement in iterator {
             println!("{:?}", announcement);

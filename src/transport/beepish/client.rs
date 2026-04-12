@@ -133,19 +133,10 @@ impl ClientConnection {
         .context("TLS connection timed out")?
         .context("Failed to establish TLS connection")?;
 
-        // Add timeout to BEEPish handshake
-        timeout(Duration::from_secs(10), async {
-            tls_stream.write_all(b"BEEP\r\n").await?;
-
-            let mut response = [0u8; 6];
-            tls_stream.read_exact(&mut response).await?;
-            if &response != b"BEEP\r\n" {
-                return Err(anyhow!("Invalid BEEPish handshake response"));
-            }
-            Ok::<_, anyhow::Error>(())
-        })
-        .await
-        .context("BEEPish handshake timed out")??;
+        // No handshake — go straight to packet I/O after TLS.
+        // The BEEP\r\n handshake was a scamp-rs invention that no other
+        // implementation supports. Perl/Go/JS all begin packet exchange
+        // immediately after TLS completes.
 
         let (reader, writer) = tokio::io::split(tls_stream);
 

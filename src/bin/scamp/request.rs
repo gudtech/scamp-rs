@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::io::IsTerminal;
 
 use anyhow::Result;
 use scamp::config::Config;
@@ -65,7 +66,7 @@ impl RequestCommand {
         }
 
         // Get a readable stream for the request body from one of the three sources we support
-        let is_pipe = !atty::is(atty::Stream::Stdin);
+        let is_pipe = !std::io::stdin().is_terminal();
         let mut body: tokio::io::BufReader<Box<dyn tokio::io::AsyncRead + Send + Unpin>> =
             if let Some(file) = self.file.clone() {
                 let file = tokio::fs::File::open(file).await?;
