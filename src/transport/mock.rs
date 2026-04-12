@@ -127,6 +127,7 @@ mod tests {
         let service_info = ServiceInfo {
             identity: "test:abcd".to_string(),
             uri: "beepish+tls://127.0.0.1:30100".to_string(),
+            fingerprint: None,
         };
 
         let action = ActionEntry {

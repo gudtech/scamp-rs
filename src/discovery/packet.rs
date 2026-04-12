@@ -1,9 +1,12 @@
+use log;
 use std::fmt;
 
 use super::service_info::{AnnouncementBody, ServiceInfoParseError};
 
 #[derive(Debug)]
 pub struct AnnouncementPacket {
+    /// The raw JSON blob (signed content). Preserved for signature verification.
+    pub json_blob: String,
     pub body: AnnouncementBody,
     pub certificate: String,
     pub signature: String,
@@ -56,17 +59,36 @@ impl AnnouncementPacket {
             }
         }
 
-        let service_info = AnnouncementBody::parse(json_blob)?;
+        let mut announcement_body = AnnouncementBody::parse(json_blob)?;
+
+        // Compute certificate fingerprint and store in ServiceInfo
+        if let Ok(fp) = crate::crypto::cert_pem_fingerprint(cert_pem) {
+            announcement_body.info.fingerprint = Some(fp);
+        }
 
         Ok(AnnouncementPacket {
-            body: service_info,
+            json_blob: json_blob.to_string(),
+            body: announcement_body,
             certificate: cert_pem.to_string(),
             signature: sig_base64.to_string(),
         })
     }
+
+    /// Verify the RSA PKCS1v15 SHA256 signature of this announcement.
+    /// The signed content is the JSON blob (position 0 of the `\n\n`-split packet).
+    /// Matches Perl ServiceInfo.pm:91-108 and Go verify.go:20-37.
     pub fn signature_is_valid(&self) -> bool {
-        // TODO
-        true
+        match crate::crypto::verify_rsa_sha256(
+            &self.certificate,
+            self.json_blob.as_bytes(),
+            &self.signature,
+        ) {
+            Ok(valid) => valid,
+            Err(e) => {
+                log::error!("Signature verification failed: {}", e);
+                false
+            }
+        }
     }
 }
 

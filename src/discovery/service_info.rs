@@ -9,6 +9,11 @@ use std::{fmt, net::SocketAddr};
 pub struct ServiceInfo {
     pub identity: String,
     pub uri: String,
+    /// SHA1 fingerprint of the service's certificate (uppercase hex, colon-separated).
+    /// Populated during announcement parsing. Used for TLS peer verification and
+    /// authorized_services matching. Matches Perl ServiceInfo.pm:82-87.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fingerprint: Option<String>,
 }
 
 impl ServiceInfo {
@@ -200,7 +205,7 @@ impl AnnouncementBody {
         parse_v3_actions(v3_actions, &v3_sector, &v3_envelopes, &mut actions)?;
 
         Ok(AnnouncementBody {
-            info: ServiceInfo { identity, uri },
+            info: ServiceInfo { identity, uri, fingerprint: None },
             params: AnnouncementParams {
                 weight,
                 interval,

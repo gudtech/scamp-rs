@@ -77,8 +77,13 @@ impl BeepishClient {
             connections.remove(&service_info.uri);
         }
 
-        // Create new connection
-        let handle = ConnectionHandle::connect(&self.config, service_info).await?;
+        // Create new connection with fingerprint verification
+        let handle = ConnectionHandle::connect(
+            &self.config,
+            service_info,
+            service_info.fingerprint.as_deref(),
+        )
+        .await?;
         let handle = Arc::new(handle);
         connections.insert(service_info.uri.clone(), handle.clone());
 
@@ -111,7 +116,22 @@ impl BeepishClient {
 
 impl ConnectionHandle {
     /// Establish a new TLS connection to a SCAMP service.
-    async fn connect(config: &Config, service_info: &ServiceInfo) -> Result<Self> {
+    ///
+    /// If `expected_fingerprint` is provided, the peer certificate's SHA1
+    /// fingerprint is verified after TLS handshake. This matches Perl
+    /// Connection.pm:61-68 (on_starttls fingerprint verification).
+    ///
+    /// Natural corking: no packets are sent until fingerprint verification
+    /// completes, because we verify synchronously before splitting the stream
+    /// and starting the writer task. Equivalent to Perl's _corked mechanism.
+    async fn connect(
+        _config: &Config,
+        service_info: &ServiceInfo,
+        expected_fingerprint: Option<&str>,
+    ) -> Result<Self> {
+        // SCAMP uses self-signed certificates with fingerprint pinning,
+        // not CA chain validation. We accept invalid certs at the TLS level
+        // and verify the fingerprint ourselves.
         let tls = native_tls::TlsConnector::builder()
             .danger_accept_invalid_certs(true)
             .build()?;
@@ -134,8 +154,31 @@ impl ConnectionHandle {
         .context("TLS handshake timed out")?
         .context("TLS handshake failed")?;
 
-        // No protocol-level handshake — go straight to packet I/O.
-        // Perl/Go/JS all begin packet exchange immediately after TLS.
+        // Certificate fingerprint verification (Perl Connection.pm:61-68).
+        // This happens BEFORE we split the stream and start sending packets,
+        // providing natural corking — no data sent to unverified peers.
+        if let Some(expected_fp) = expected_fingerprint {
+            let peer_cert = tls_stream
+                .get_ref()
+                .peer_certificate()
+                .context("Failed to get peer certificate")?
+                .ok_or_else(|| anyhow!("Peer did not present a certificate"))?;
+
+            let peer_der = peer_cert
+                .to_der()
+                .context("Failed to get peer certificate DER")?;
+
+            let actual_fp = crate::crypto::cert_sha1_fingerprint(&peer_der);
+
+            if actual_fp != expected_fp {
+                return Err(anyhow!(
+                    "CERTIFICATE MISMATCH! Announced {} got {}",
+                    expected_fp,
+                    actual_fp
+                ));
+            }
+            log::debug!("Certificate fingerprint verified: {}", actual_fp);
+        }
 
         let (reader, writer) = tokio::io::split(tls_stream);
 
