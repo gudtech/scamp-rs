@@ -29,12 +29,21 @@ These prompt files are designed to be fed to AI coding agents (one at a time, in
 | [10-test-integration.md](10-test-integration.md) | Cross-language interop tests (requires dev environment) |
 | [11-test-fuzz-and-stress.md](11-test-fuzz-and-stress.md) | Fuzz parsing, stress connections, property-based tests |
 
-## Usage
+## Getting Started
 
-Each prompt is self-contained with full context. Feed it to an agent along with access to:
-- `/Users/daniel/GT/repo/scamp-rs/` (this repo)
-- `/Users/daniel/GT/repo/scamp-go/` (Go reference)
-- `/Users/daniel/GT/repo/scamp-js/` (JS reference)
-- `/Users/daniel/GT/repo/retailops-rs/migration-research/07-scamp-rs-parity-analysis.md` (gap analysis)
+**Use [AGENT-KICKOFF.md](AGENT-KICKOFF.md) as the entry point.** It contains the
+full orientation, review instructions, and implementation plan for an agent taking
+ownership of the scamp-rs completion work.
+
+## Reference Implementation Priority
+
+1. **gt-soa/perl** (`/Users/daniel/GT/repo/gt-soa/perl/lib/GTSOA/`) — THE canonical implementation. Perl services are the primary SCAMP consumers. Wire compat with Perl is the #1 priority.
+2. **gt-soa/js** (`/Users/daniel/GT/repo/gt-soa/js/lib/`) — original JS impl within gt-soa
+3. **scamp-js** (`/Users/daniel/GT/repo/scamp-js/lib/`) — modernized JS fork, most featureful
+4. **scamp-go** (`/Users/daniel/GT/repo/scamp-go/scamp/`) — least reliable reference, cross-check only
+
+NOTE: The individual prompt files (00-11) were initially written with scamp-go as the
+primary reference. The AGENT-KICKOFF.md corrects this. The agent's first task is to
+review and revise the prompts against the Perl implementation.
 
 The punchlist at `../PUNCHLIST.md` tracks overall progress.
