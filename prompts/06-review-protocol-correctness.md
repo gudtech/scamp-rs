@@ -2,11 +2,12 @@
 
 ## Context
 
-You are reviewing scamp-rs at `/Users/daniel/GT/repo/scamp-rs/` for protocol-level correctness against the two production implementations:
-- **scamp-go**: `/Users/daniel/GT/repo/scamp-go/scamp/`
-- **scamp-js**: `/Users/daniel/GT/repo/scamp-js/lib/`
+You are reviewing scamp-rs at `/Users/daniel/GT/repo/scamp-rs/` for protocol-level correctness against the canonical Perl implementation and the other production implementations:
+- **gt-soa/perl** (`/Users/daniel/GT/repo/gt-soa/perl/lib/GTSOA/`): THE canonical implementation. Wire compat with Perl is the #1 priority.
+- **scamp-js**: `/Users/daniel/GT/repo/scamp-js/lib/` (most featureful)
+- **scamp-go**: `/Users/daniel/GT/repo/scamp-go/scamp/` (cross-reference only, least reliable)
 
-Your job is to find every place where scamp-rs diverges from the wire protocol in ways that would cause interoperability failures with Go or JS services. This is an adversarial review — assume bugs exist and hunt for them.
+Your job is to find every place where scamp-rs diverges from the wire protocol in ways that would cause interoperability failures, **especially with Perl services**. This is an adversarial review — assume bugs exist and hunt for them.
 
 ## Review Checklist
 

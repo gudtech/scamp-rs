@@ -43,7 +43,9 @@ ownership of the scamp-rs completion work.
 4. **scamp-go** (`/Users/daniel/GT/repo/scamp-go/scamp/`) — least reliable reference, cross-check only
 
 NOTE: The individual prompt files (00-11) were initially written with scamp-go as the
-primary reference. The AGENT-KICKOFF.md corrects this. The agent's first task is to
-review and revise the prompts against the Perl implementation.
+primary reference. They have been revised against the canonical Perl implementation.
+Key corrections: JSON field name is `"type"` not `"message_type"`, message numbers
+start at 0, PING/PONG not supported by Perl, ACK is decimal string, action index key
+is `sector:action.vVERSION`, announcements are zlib-compressed.
 
 The punchlist at `../PUNCHLIST.md` tracks overall progress.
