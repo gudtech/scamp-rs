@@ -29,12 +29,12 @@ Status legend: `[ ]` todo, `[~]` in progress, `[x]` done, `[!]` blocked
 
 ## Phase 2: Service Infrastructure
 
-- [ ] **P2-1** TLS server listener: accept connections on random port in configured range. Perl `Server.pm`: `beepish.first_port` (30100), `beepish.first_port` (30399 — note Perl has a bug using first_port for both), `beepish.bind_tries` (20). URI format: `beepish+tls://addr:port`.
-- [ ] **P2-2** Action registration: `service.register("Name.action", version, handler_fn)` with sector, flags, envelope types.
-- [ ] **P2-3** ⚠️ Request dispatch: route by action name + version. Server sets `type = 'reply'` and copies `request_id` from request to reply (Perl `Server.pm:66-68`). Note: Perl uses `'reply'` not `'response'` (MESSAGE.pod incorrectly says "response").
-- [ ] **P2-4** Handler trait: `async fn handle(request: ScampRequest) -> Result<ScampResponse, ScampError>`
-- [ ] **P2-5** Service identity: `name:base64(random 18 bytes)` — Perl `Announcer.pm:52`.
-- [ ] **P2-6** ⚠️ Announcement packet generation: v3 JSON array format is `[3, ident, sector, weight, interval_ms, uri, [envelopes..., v4_hash], v3_actions, timestamp]`. Note: `interval` is in **milliseconds** in the JSON (Perl `Announcer.pm:163`: `intvl => $self->interval * 1000`). Signing: RSA SHA256, sign the JSON blob bytes. Full packet: `json_blob\n\ncert_pem\nbase64(sig)\n`. Then **zlib compress** before multicast sending (Perl `Announcer.pm:202`).
+- [x] **P2-1** TLS server listener on random port in 30100-30399 range with retry
+- [x] **P2-2** Action registration: `service.register("Name.action", version, handler_fn)`
+- [x] **P2-3** ⚠️ Request dispatch with `type = 'reply'` and `request_id` copy from request
+- [x] **P2-4** Handler via async closures returning ScampReply
+- [x] **P2-5** Service identity: `name:base64(random 18 bytes)`
+- [ ] **P2-6** ⚠️ Announcement packet generation (needed for discovery via multicast/cache)
 
 ## Phase 3: Security
 
@@ -93,8 +93,14 @@ Status legend: `[ ]` todo, `[~]` in progress, `[x]` done, `[!]` blocked
 - [ ] **T10** **Rust client → Go service**: Connect to soabridge (scamp-go). Send a request. Verify response. Verify NO PING packets are sent.
 
 **Phase 2 validation (after service infrastructure):**
-- [ ] **T11** **Perl client → Rust service**: Start a Rust service, wait for it to appear in the discovery cache. Use `docker exec main` to run Perl tools (`lssoa`, or a simple Perl script using GTSOA::Requester) to discover and call the Rust service. This validates: announcement generation, signature, TLS server, request dispatch, and reply format.
-- [ ] **T12** **lssoa validation**: Run `docker exec main lssoa` (or equivalent) and verify the Rust service appears with correct identity, address, sector, and action list.
+- [~] **T11** **Perl client → Rust service via discovery**:
+  - ✓ `lssoa` shows Rust service with correct identity, address, sector, fingerprint
+  - ✓ Perl `ServiceManager->lookup` discovers Rust service through cache
+  - ✓ Signature verification passes (PKCS1 SHA256)
+  - ✓ authorized_services check passes (dev cert fingerprint)
+  - ✓ Direct `BEEPish::Client` with fingerprint verification → echo works
+  - ✗ `Requester->simple_request` path times out — connection accepted but no packets sent. Likely Perl AnyEvent event loop timing issue with corked writes, not a wire protocol bug. Needs investigation.
+- [x] **T12** **lssoa validation**: ✓ `docker exec main perl /service/main/gt-soa/perl/script/lssoa` shows the Rust service with correct identity, sector, weight, address, envelope, and fingerprint.
 
 **Phase 3+ validation:**
 - [ ] **T13** Connection multiplexing: concurrent requests on one connection to a Perl service

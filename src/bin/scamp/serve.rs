@@ -19,6 +19,14 @@ pub struct ServeCommand {
     /// Path to PEM-encoded service certificate
     #[arg(long)]
     cert: Option<String>,
+
+    /// Write announcement to discovery cache file for testing
+    #[arg(long)]
+    announce_to_cache: bool,
+
+    /// IP address to announce (overrides auto-detected bind address)
+    #[arg(long)]
+    announce_ip: Option<String>,
 }
 
 impl ServeCommand {
@@ -66,9 +74,46 @@ impl ServeCommand {
 
         service.bind_pem(&key_pem, &cert_pem).await?;
 
+        // Set announce IP if provided, or auto-detect from hostname
+        if let Some(ip) = &self.announce_ip {
+            service.set_announce_ip(ip);
+        } else {
+            // Try to detect a non-loopback IP for announcing
+            if let Ok(hostname) = std::env::var("HOSTNAME") {
+                // In Docker, HOSTNAME is the container ID; resolve it to get the container IP
+                if let Ok(addrs) = tokio::net::lookup_host(format!("{}:0", hostname)).await {
+                    for addr in addrs {
+                        if !addr.ip().is_loopback() {
+                            service.set_announce_ip(&addr.ip().to_string());
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
         println!("  * Service identity: {}", service.identity());
         println!("  * Listening on: {}", service.uri().unwrap_or_default());
         println!("  * Registered actions: ScampRsTest.echo~1, ScampRsTest.health_check~1");
+
+        if self.announce_to_cache {
+            let announcement = service.build_announcement_packet()?;
+            let cache_path: String = config
+                .get("discovery.cache_path")
+                .ok_or_else(|| anyhow::anyhow!("No discovery.cache_path in config"))?
+                .map_err(|e| anyhow::anyhow!("{}", e))?;
+
+            // Append to cache file with %%% delimiter
+            use std::io::Write;
+            let mut file = std::fs::OpenOptions::new()
+                .append(true)
+                .open(&cache_path)?;
+            write!(file, "\n%%%\n{}", announcement)?;
+
+            println!("  * Announcement written to cache: {}", cache_path);
+            println!("  * Perl services will discover this service on next lookup");
+        }
+
         println!("  * Press Ctrl+C to stop");
 
         service.run().await

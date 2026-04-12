@@ -4,6 +4,7 @@
 //! Perl Transport::BEEPish::Server and JS actor/service.js.
 
 use anyhow::{anyhow, Result};
+use base64;
 use log;
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -76,10 +77,14 @@ pub struct ScampService {
     name: String,
     identity: String,
     sector: String,
+    envelopes: Vec<String>,
     actions: HashMap<String, RegisteredAction>,
     listener: Option<TcpListener>,
     tls_acceptor: Option<TlsAcceptor>,
     address: Option<SocketAddr>,
+    key_pem: Option<Vec<u8>>,
+    cert_pem: Option<Vec<u8>>,
+    announce_ip: Option<String>,
 }
 
 impl ScampService {
@@ -94,10 +99,14 @@ impl ScampService {
             name: name.to_string(),
             identity,
             sector: sector.to_string(),
+            envelopes: vec!["json".to_string()],
             actions: HashMap::new(),
             listener: None,
             tls_acceptor: None,
             address: None,
+            key_pem: None,
+            cert_pem: None,
+            announce_ip: None,
         }
     }
 
@@ -110,8 +119,19 @@ impl ScampService {
     }
 
     pub fn uri(&self) -> Option<String> {
-        self.address
-            .map(|addr| format!("beepish+tls://{}:{}", addr.ip(), addr.port()))
+        self.address.map(|addr| {
+            let ip = match &self.announce_ip {
+                Some(ip) => ip.clone(),
+                None => addr.ip().to_string(),
+            };
+            format!("beepish+tls://{}:{}", ip, addr.port())
+        })
+    }
+
+    /// Set the IP address to use in announcements (if different from bind address).
+    /// Needed when binding to 0.0.0.0 but announcing a specific interface IP.
+    pub fn set_announce_ip(&mut self, ip: &str) {
+        self.announce_ip = Some(ip.to_string());
     }
 
     /// Register an action handler.
@@ -170,9 +190,9 @@ impl ScampService {
 
     /// Bind using PEM key and certificate files (more common in SCAMP).
     pub async fn bind_pem(&mut self, key_pem: &[u8], cert_pem: &[u8]) -> Result<()> {
-        // native-tls requires PKCS12, so we need to convert PEM to PKCS12
-        // For now, use the openssl crate or manual conversion
-        // TODO: switch to rustls which handles PEM natively
+        self.key_pem = Some(key_pem.to_vec());
+        self.cert_pem = Some(cert_pem.to_vec());
+
         let key = native_tls::Identity::from_pkcs8(cert_pem, key_pem)?;
         let tls = native_tls::TlsAcceptor::builder(key).build()?;
         let tls_acceptor = TlsAcceptor::from(tls);
@@ -203,6 +223,96 @@ impl ScampService {
         self.address = Some(addr);
 
         Ok(())
+    }
+
+    /// Generate a v3 announcement packet (signed, ready for multicast or cache).
+    ///
+    /// Format matches Perl Announcer.pm `_build_packet`:
+    /// - JSON: [3, ident, sector, weight, interval_ms, uri, [envelopes...], v3_actions, timestamp]
+    /// - Full packet: `json_blob\n\ncert_pem\nbase64(sig)\n`
+    pub fn build_announcement_packet(&self) -> Result<String> {
+        let key_pem = self.key_pem.as_ref().ok_or_else(|| anyhow!("No key loaded"))?;
+        let cert_pem_bytes = self.cert_pem.as_ref().ok_or_else(|| anyhow!("No cert loaded"))?;
+        let cert_pem_str = std::str::from_utf8(cert_pem_bytes)?;
+        let uri = self.uri().ok_or_else(|| anyhow!("Not bound"))?;
+
+        // Build v3 action list: [[ClassName, [actionName, flags, version?], ...], ...]
+        let mut class_map: HashMap<String, Vec<serde_json::Value>> = HashMap::new();
+        for (key, registered) in &self.actions {
+            // Key is "action.vVERSION", split to get namespace.method
+            let action_name = &registered.name;
+            let parts: Vec<&str> = action_name.rsplitn(2, '.').collect();
+            if parts.len() != 2 {
+                continue;
+            }
+            let method = parts[0];
+            let namespace = parts[1];
+
+            let entry = class_map.entry(namespace.to_string()).or_default();
+            // [methodName, flags, version] — version omitted if 1
+            let mut action_arr = vec![
+                serde_json::Value::String(method.to_string()),
+                serde_json::Value::String(String::new()), // flags
+            ];
+            if registered.version != 1 {
+                action_arr.push(serde_json::Value::Number(registered.version.into()));
+            }
+            entry.push(serde_json::Value::Array(action_arr));
+        }
+
+        let mut v3_classes: Vec<serde_json::Value> = Vec::new();
+        for (namespace, actions) in &class_map {
+            let mut cls = vec![serde_json::Value::String(namespace.clone())];
+            cls.extend(actions.iter().cloned());
+            v3_classes.push(serde_json::Value::Array(cls));
+        }
+
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs_f64();
+
+        // v3 format: [3, ident, sector, weight, interval_ms, uri, [envelopes...], v3_actions, timestamp]
+        let json_array = serde_json::json!([
+            3,
+            self.identity,
+            self.sector,
+            1,    // weight
+            5000, // interval in milliseconds
+            uri,
+            self.envelopes, // envelopes array
+            v3_classes,
+            timestamp,
+        ]);
+
+        let json_blob = serde_json::to_string(&json_array)?;
+
+        // Sign with RSA SHA256 using PKCS1v15
+        let rsa_key = openssl::rsa::Rsa::private_key_from_pem(key_pem)?;
+        let pkey = openssl::pkey::PKey::from_rsa(rsa_key)?;
+        let mut signer = openssl::sign::Signer::new(
+            openssl::hash::MessageDigest::sha256(),
+            &pkey,
+        )?;
+        signer.set_rsa_padding(openssl::rsa::Padding::PKCS1)?;
+        signer.update(json_blob.as_bytes())?;
+        let signature = signer.sign_to_vec()?;
+        let sig_base64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &signature);
+
+        // Format: json\n\ncert_pem\n\nbase64_sig\n
+        // Perl Announcer.pm:198-200:
+        //   $blob . "\n\n" . $self->cert_pem . "\n" . encode_base64(sig) . "\n"
+        // cert_pem already ends with \n, so + "\n" makes \n\n separator.
+        // Perl's split /\n\n/ then produces [json, cert, sig].
+        let cert_str = cert_pem_str.trim_end_matches('\n');
+        let packet = format!(
+            "{}\n\n{}\n\n{}\n",
+            json_blob,
+            cert_str,
+            sig_base64,
+        );
+
+        Ok(packet)
     }
 
     /// Run the service accept loop. This is the main entry point.
