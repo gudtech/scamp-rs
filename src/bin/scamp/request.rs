@@ -39,10 +39,14 @@ impl RequestCommand {
         let action_name = parts.next().unwrap_or(&self.action);
         let version: i32 = parts.next().unwrap_or("1").parse().unwrap_or(1);
 
-        let pathver = format!("{}~{}", action_name, version);
+        // Look up action using the new key format (sector:action.vVERSION)
+        // Default to "main" sector, matching Perl Requester.pm:15
         let action = registry
-            .get_action(&pathver)
-            .ok_or(anyhow::anyhow!("Action not found: {}", pathver))?;
+            .get_action_by_pathver(&format!("{}~{}", action_name, version), "main")
+            .ok_or(anyhow::anyhow!(
+                "Action not found: {} (tried sector 'main')",
+                action_name
+            ))?;
 
         let mut _headers: BTreeMap<String, String> = BTreeMap::new();
         for header in &self.header {
