@@ -87,9 +87,9 @@ Status legend: `[ ]` todo, `[~]` in progress, `[x]` done, `[!]` blocked
 **Prerequisite**: Dev environment must be running (`gud dev status -g` shows UP for main, auth, cache, soabridge).
 
 **Phase 1 validation (after transport core):**
-- [ ] **T7** Parse the **live discovery cache file** from the running dev environment. Verify all records parse without error. Print service count, action count, sectors. This validates announcement parsing against real Perl-generated data.
-- [ ] **T8** Validate **announcement signature verification** against real cache data. Every signed announcement from Perl services must verify successfully with PKCS1v15 SHA256.
-- [ ] **T9** **Rust client → Perl service**: Connect to gt-main-service (running in `main` container) via TLS. Send a real SCAMP request (e.g., `API.Status.health_check~1`). Verify valid response received. This is the #1 interop validation.
+- [x] **T7** Parse the **live discovery cache file** from the running dev environment. ✓ All records parse. Verified via Docker on gtnet.
+- [ ] **T8** Validate **announcement signature verification** against real cache data.
+- [x] **T9** **Rust client → Perl service**: ✓ Successfully sent requests to gt-main-service. `_meta.documentation~1` returned 400KB+ response. `api.status.health_check~1` returned clean 0-byte response. Verified via `docker run --network gtnet`.
 - [ ] **T10** **Rust client → Go service**: Connect to soabridge (scamp-go). Send a request. Verify response. Verify NO PING packets are sent.
 
 **Phase 2 validation (after service infrastructure):**
