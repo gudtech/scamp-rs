@@ -83,9 +83,15 @@ impl AnnouncementPacket {
             self.json_blob.as_bytes(),
             &self.signature,
         ) {
-            Ok(valid) => valid,
+            Ok(valid) => {
+                if !valid {
+                    log::warn!("Signature verification returned false for {}", self.body.info.identity);
+                }
+                valid
+            }
             Err(e) => {
-                log::error!("Signature verification failed: {}", e);
+                log::error!("Signature verification error for {}: {}", self.body.info.identity, e);
+                eprintln!("Signature verification error for {}: {}", self.body.info.identity, e);
                 false
             }
         }
@@ -101,12 +107,118 @@ impl From<ServiceInfoParseError> for AnnouncementParseError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
-    fn single_announcement() {
+    fn single_announcement_parses() {
         let announcement = AnnouncementPacket::parse(include_str!(
             "../../samples/service_info_packet_v3_full.txt"
         ))
         .unwrap();
-        println!("{:?}", announcement);
+        assert!(!announcement.body.info.identity.is_empty());
+        assert!(!announcement.certificate.is_empty());
+        assert!(!announcement.signature.is_empty());
+    }
+
+    #[test]
+    fn single_announcement_has_fingerprint() {
+        let announcement = AnnouncementPacket::parse(include_str!(
+            "../../samples/service_info_packet_v3_full.txt"
+        ))
+        .unwrap();
+        let fp = announcement.body.info.fingerprint.as_ref().unwrap();
+        // Fingerprint should be colon-separated uppercase hex
+        assert!(fp.contains(':'));
+        assert!(fp.chars().filter(|c| c.is_ascii_alphabetic()).all(|c| c.is_ascii_uppercase()));
+    }
+
+    /// Verify ALL announcements in the live discovery cache have valid signatures.
+    /// This is the M2 verification test.
+    /// Run with: cargo test -- --ignored test_verify_real_cache_signatures
+    #[test]
+    #[ignore] // requires live dev environment
+    fn test_verify_live_signature_and_tamper() {
+        use crate::discovery::cache_file::CacheFileAnnouncementIterator;
+
+        let home = std::env::var("HOME").unwrap_or_default();
+        let cache_path = format!("{}/GT/backplane/discovery/discovery", home);
+        let file = std::fs::File::open(&cache_path)
+            .expect("Discovery cache not found");
+
+        // Find the first valid announcement
+        let mut valid_raw = None;
+        for result in CacheFileAnnouncementIterator::new(file) {
+            if let Ok(ann) = result {
+                if ann.signature_is_valid() {
+                    valid_raw = Some(format!(
+                        "{}\n\n{}\n\n{}",
+                        ann.json_blob, ann.certificate, ann.signature
+                    ));
+                    break;
+                }
+            }
+        }
+
+        let raw = valid_raw.expect("No valid announcement found in cache");
+
+        // Tamper with it — signature should now fail
+        let tampered = raw.replacen("main", "TAMPERED", 1);
+        let tampered_ann = AnnouncementPacket::parse(&tampered).unwrap();
+        assert!(
+            !tampered_ann.signature_is_valid(),
+            "Tampered announcement should fail signature verification"
+        );
+    }
+
+    /// Verify ALL announcements in the live discovery cache.
+    /// Run with: cargo test -- --ignored test_verify_real_cache_signatures
+    #[test]
+    #[ignore] // requires live dev environment
+    fn test_verify_real_cache_signatures() {
+        use crate::discovery::cache_file::CacheFileAnnouncementIterator;
+
+        let home = std::env::var("HOME").unwrap_or_default();
+        let cache_path = format!("{}/GT/backplane/discovery/discovery", home);
+        let file = std::fs::File::open(&cache_path)
+            .expect("Discovery cache not found — is the dev environment running?");
+
+        let mut total = 0;
+        let mut verified = 0;
+        let mut parse_errors = 0;
+
+        for result in CacheFileAnnouncementIterator::new(file) {
+            total += 1;
+            match result {
+                Ok(announcement) => {
+                    if announcement.signature_is_valid() {
+                        verified += 1;
+                        println!(
+                            "  ✓ {} ({})",
+                            announcement.body.info.identity,
+                            announcement.body.info.fingerprint.as_deref().unwrap_or("no fp")
+                        );
+                    } else {
+                        println!(
+                            "  ✗ {} SIGNATURE INVALID",
+                            announcement.body.info.identity
+                        );
+                    }
+                }
+                Err(e) => {
+                    parse_errors += 1;
+                    println!("  ? Parse error: {}", e);
+                }
+            }
+        }
+
+        println!(
+            "\n{} total, {} verified, {} parse errors",
+            total, verified, parse_errors
+        );
+        assert!(verified > 0, "No announcements verified — is the dev environment running?");
+        assert_eq!(
+            verified,
+            total - parse_errors,
+            "Some valid announcements failed signature verification"
+        );
     }
 }
