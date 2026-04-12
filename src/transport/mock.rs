@@ -1,9 +1,13 @@
 use crate::discovery::ActionEntry;
 
-use super::{Client, Response};
 use anyhow::Result;
 use std::{collections::BTreeMap, io::Cursor, sync::Mutex};
-use tokio::io::{AsyncRead, AsyncReadExt, BufReader};
+use tokio::io::{AsyncRead, AsyncReadExt};
+
+pub struct MockResponse {
+    pub headers: BTreeMap<String, String>,
+    pub body: Box<dyn AsyncRead + Unpin>,
+}
 
 pub struct Expectation {
     pub pathver: String,
@@ -36,15 +40,13 @@ impl MockClient {
     pub fn expectation_count(&mut self) -> usize {
         self.expect.lock().unwrap().len()
     }
-}
 
-impl Client for MockClient {
-    async fn request<'a>(
+    pub async fn request(
         &self,
-        action: &'a ActionEntry,
+        action: &ActionEntry,
         headers: BTreeMap<String, String>,
         mut body: Box<dyn AsyncRead + Unpin + Send>,
-    ) -> Result<Response> {
+    ) -> Result<MockResponse> {
         eprintln!(
             "  * Mock Call to {} at {}",
             action.action.path, action.service_info.uri
@@ -52,13 +54,11 @@ impl Client for MockClient {
 
         let pathver = format!("{}~{}", action.action.path, action.action.version);
 
-        // Find the index of the matching expectation
         let index = {
             let expectations = self.expect.lock().unwrap();
             expectations.iter().position(|e| e.pathver == pathver)
         };
 
-        // Remove the expectation if found
         let expectation = match index {
             Some(idx) => self.expect.lock().unwrap().remove(idx),
             None => {
@@ -68,7 +68,6 @@ impl Client for MockClient {
             }
         };
 
-        // check to see if the request headers match the expectation
         if headers != expectation.req_headers {
             return Err(anyhow::anyhow!("Request headers do not match expectation"));
         }
@@ -82,23 +81,20 @@ impl Client for MockClient {
         let mut buf = Vec::new();
         body.read_to_end(&mut buf).await.unwrap();
 
-        // check to see if the request body matches the expectation
         if buf == expectation.req_body {
             println!("    * Request body matches expectation");
         } else {
             return Err(anyhow::anyhow!("Request body does not match expectation"));
         }
 
-        // and then return a dummy response
         let mut headers = BTreeMap::new();
         headers.insert("content-type".to_string(), "application/json".to_string());
 
         let body = Box::new(tokio::io::BufReader::new(Cursor::new(expectation.res_body)))
             as Box<dyn AsyncRead + Unpin>;
 
-        // print the response headers
         println!("    * Response headers: {:?}", headers);
-        Ok(Response { headers, body })
+        Ok(MockResponse { headers, body })
     }
 }
 
@@ -119,44 +115,54 @@ mod tests {
         let res_body: Vec<u8> = r#"{"status":"great", "reframulation_level": 42}"#.into();
 
         let mut client = MockClient::new();
-        let action = ActionEntry {
-            service_info: ServiceInfo {
-                uri: "http://localhost:8080".to_string(),
-                identity: "test".to_string(),
-            },
-            authorized: true,
-            announcement_params: AnnouncementParams {
-                weight: 1,
-                interval: 1,
-                timestamp: 1.0,
-            },
-            action: Action {
-                path: "foo.bar".to_string(),
-                version: 1,
-                pathver: pathver.clone(),
-                flags: vec![],
-                sector: "".to_string(),
-                packet_section: PacketSection::V4,
-                envelopes: vec!["json".to_string()],
-            },
-        };
-
         client.expect(Expectation {
-            pathver,
-            req_headers,
+            pathver: pathver.clone(),
+            req_headers: req_headers.clone(),
             req_body: req_body.clone(),
-            res_headers,
-            res_body,
+            res_headers: res_headers.clone(),
+            res_body: res_body.clone(),
             sleep: None,
         });
 
-        client
+        let service_info = ServiceInfo {
+            identity: "test:abcd".to_string(),
+            uri: "beepish+tls://127.0.0.1:30100".to_string(),
+        };
+
+        let action = ActionEntry {
+            action: service_info::Action {
+                path: "foo.bar".to_string(),
+                version: 1,
+                pathver: "foo.bar~1".to_string(),
+                flags: vec![],
+                sector: "main".to_string(),
+                envelopes: vec!["json".to_string()],
+                packet_section: service_info::PacketSection::V3,
+            },
+            service_info: service_info.clone(),
+            announcement_params: service_info::AnnouncementParams {
+                weight: 1,
+                interval: 5000,
+                timestamp: 0.0,
+            },
+            authorized: true,
+        };
+
+        let response = client
             .request(
                 &action,
-                BTreeMap::from([("content-type".to_string(), "application/json".to_string())]),
-                Box::new(Cursor::new(req_body)),
+                req_headers.clone(),
+                Box::new(std::io::Cursor::new(req_body)),
             )
             .await
             .unwrap();
+
+        let mut body = Vec::new();
+        let mut reader = response.body;
+        tokio::io::AsyncReadExt::read_to_end(&mut reader, &mut body)
+            .await
+            .unwrap();
+        assert_eq!(body, res_body);
+        assert!(client.expectations_met());
     }
 }

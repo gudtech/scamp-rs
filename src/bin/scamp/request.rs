@@ -4,7 +4,9 @@ use std::io::IsTerminal;
 use anyhow::Result;
 use scamp::config::Config;
 use scamp::discovery::service_registry::ServiceRegistry;
-use tokio::io::{AsyncBufReadExt, AsyncReadExt};
+use scamp::transport::beepish::proto::EnvelopeFormat;
+use scamp::transport::beepish::BeepishClient;
+use tokio::io::AsyncBufReadExt;
 
 #[derive(clap::Parser, Debug, Clone)]
 pub struct RequestCommand {
@@ -27,92 +29,84 @@ pub struct RequestCommand {
     /// must be in the format of "-H name: value"
     #[arg(short = 'H', long)]
     header: Vec<String>,
-    // /// use a json file for the headers
-    // #[arg(short, long)]
-    // header_file: Option<String>,
-
-    // Suppress all output except for the response body
-    // #[arg(short, long)]
-    // quiet: bool,
 }
 
 impl RequestCommand {
     pub async fn run(&self, config: &Config, registry: &ServiceRegistry) -> Result<()> {
         println!("  * Requesting action: {}", self.action);
 
-        // split the given action on the ~ character to get the action name and the version
-        // assume version 1 if not specified
         let mut parts = self.action.splitn(2, '~');
         let action_name = parts.next().unwrap_or(&self.action);
-        let version = parts.next().unwrap_or("1");
+        let version: i32 = parts.next().unwrap_or("1").parse().unwrap_or(1);
 
         let pathver = format!("{}~{}", action_name, version);
-        // find the action in the registry
         let action = registry
             .get_action(&pathver)
-            .ok_or(anyhow::anyhow!("Action not found"))?;
+            .ok_or(anyhow::anyhow!("Action not found: {}", pathver))?;
 
-        let mut headers: BTreeMap<String, String> = BTreeMap::new();
-
-        // read in the headers
+        let mut _headers: BTreeMap<String, String> = BTreeMap::new();
         for header in &self.header {
             let mut parts = header.splitn(2, ':');
             if let (Some(key), Some(value)) = (parts.next(), parts.next()) {
-                headers.insert(
+                _headers.insert(
                     key.trim().to_string().to_lowercase(),
                     value.trim().to_string(),
                 );
             }
         }
 
-        // Get a readable stream for the request body from one of the three sources we support
+        // Get request body
         let is_pipe = !std::io::stdin().is_terminal();
-        let mut body: tokio::io::BufReader<Box<dyn tokio::io::AsyncRead + Send + Unpin>> =
-            if let Some(file) = self.file.clone() {
-                let file = tokio::fs::File::open(file).await?;
-                tokio::io::BufReader::new(Box::new(file))
-            } else if let Some(body) = &self.body {
-                tokio::io::BufReader::new(Box::new(std::io::Cursor::new(body.clone().into_bytes())))
-            } else if is_pipe {
-                tokio::io::BufReader::new(Box::new(tokio::io::stdin()))
-            } else {
-                return Err(anyhow::anyhow!(
-                    "Either --file or --body or pipe must be specified"
-                ));
-            };
-
-        // Peek at the first few bytes to see if we can auto-detect the content type
-        let buf = body.fill_buf().await?;
-
-        if !headers.contains_key("content-type") {
-            if buf.len() > 0 && buf[0] == b'{' {
-                println!(
-                    "  * Auto-detected content type as application/json. Override with -H flag"
-                );
-                headers.insert("content-type".to_string(), "application/json".to_string());
-            }
-            // Add more content type detection logic based on the peeked bytes if needed
-        }
-
-        let client = scamp::transport::beepish::BeepishClient::new(&config);
-
-        use scamp::transport::Client;
-        let mut response = client.request(action, headers, Box::new(body)).await?;
-        // print the response body
-        let mut bytes = 0;
-        let mut buffer = [0; 1024];
-        loop {
-            match response.body.read(&mut buffer).await {
-                Ok(0) => break,
-                Ok(bytes_read) => {
-                    bytes += bytes_read;
-                    print!("{}", String::from_utf8_lossy(&buffer[..bytes_read]));
+        let body_bytes: Vec<u8> = if let Some(file) = &self.file {
+            tokio::fs::read(file).await?
+        } else if let Some(body) = &self.body {
+            body.clone().into_bytes()
+        } else if is_pipe {
+            let mut buf = Vec::new();
+            let mut stdin = tokio::io::BufReader::new(tokio::io::stdin());
+            loop {
+                let bytes = stdin.fill_buf().await?;
+                if bytes.is_empty() {
+                    break;
                 }
-                Err(e) => eprintln!("Error reading body: {}", e),
+                buf.extend_from_slice(bytes);
+                let len = bytes.len();
+                stdin.consume(len);
             }
+            buf
+        } else {
+            return Err(anyhow::anyhow!(
+                "Either --file or --body or pipe must be specified"
+            ));
+        };
+
+        let client = BeepishClient::new(config);
+
+        let response = client
+            .request(
+                &action.service_info,
+                action_name,
+                version,
+                EnvelopeFormat::Json,
+                "", // ticket
+                0,  // client_id
+                body_bytes,
+                None, // use default timeout
+            )
+            .await?;
+
+        if let Some(err) = &response.error {
+            eprintln!("  * Error: {}", err);
         }
 
-        println!("\n  *  Request complete. Response contained {bytes} bytes");
+        if !response.body.is_empty() {
+            print!("{}", String::from_utf8_lossy(&response.body));
+        }
+
+        println!(
+            "\n  * Request complete. Response contained {} bytes",
+            response.body.len()
+        );
 
         Ok(())
     }

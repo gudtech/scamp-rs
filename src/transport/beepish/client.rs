@@ -1,66 +1,55 @@
 use anyhow::{anyhow, Context, Result};
-use futures::{SinkExt, StreamExt};
-use serde_json::{self, Value};
-use std::collections::{BTreeMap, HashMap};
+use log;
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
-use tokio::io::{
-    AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader, ReadHalf,
-    WriteHalf,
-};
+use std::time::Duration;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, ReadHalf, WriteHalf};
 use tokio::net::TcpStream;
 use tokio::sync::{mpsc, oneshot, Mutex};
-use tokio::time::{interval, timeout};
+use tokio::time::timeout;
 use tokio_native_tls::{native_tls, TlsConnector, TlsStream};
 
-use super::proto::{Packet, PacketHeader, PacketType, ParseResult};
+use super::proto::{
+    EnvelopeFormat, FlexInt, MessageType, Packet, PacketHeader, PacketType, ParseResult,
+    DATA_CHUNK_SIZE,
+};
 use crate::config::Config;
-use crate::discovery::{ActionEntry, ServiceInfo};
-use crate::transport::{Client, Response};
+use crate::discovery::ServiceInfo;
 
 const MAX_FLOW: usize = 65536;
+const DEFAULT_TIMEOUT_SECS: u64 = 75;
 
-fn assert_send_sync<T: Send + Sync>() {}
-
-fn main() {
-    assert_send_sync::<TlsStream<TcpStream>>();
+/// A SCAMP response received from a service.
+pub struct ScampResponse {
+    pub header: PacketHeader,
+    pub body: Vec<u8>,
+    pub error: Option<String>,
 }
 
+/// High-level SCAMP client that manages connections to services.
 pub struct BeepishClient {
     config: Config,
-    connections: Arc<Mutex<HashMap<String, Arc<ClientConnection>>>>,
+    connections: Arc<Mutex<HashMap<String, Arc<ConnectionHandle>>>>,
 }
 
-// Lets try to simplify the connection struct
-// The big question is: How do we dispatch received messages to the correct response stream
-struct ClientConnection {
-    config: Config,
-    writer: Arc<WriteHalf<TlsStream<TcpStream>>>,
-    reader_handle: Option<tokio::task::JoinHandle<()>>,
-    // incoming: HashMap<u64, IncomingMessage>,
-    // outgoing: HashMap<u64, OutgoingMessage>,
-    // next_incoming_id: u64,
-    // next_outgoing_id: u64,
-    // heartbeat_interval: Option<Duration>,
-    // last_heartbeat: Instant,
+/// Handle to a single connection. Allows sending requests and awaiting responses.
+/// The reader and writer tasks run in the background.
+pub struct ConnectionHandle {
+    writer_tx: mpsc::Sender<Packet>,
+    pending: Arc<Mutex<HashMap<i64, oneshot::Sender<ScampResponse>>>>,
+    next_request_id: AtomicI64,
+    next_outgoing_msg_no: AtomicU64,
+    closed: AtomicBool,
+    reader_handle: tokio::task::JoinHandle<()>,
+    writer_handle: tokio::task::JoinHandle<()>,
 }
 
-struct Message {
-    header: PacketHeader,
-    body: Box<dyn AsyncRead + Unpin + Send>,
-}
-
+/// An in-progress incoming message being assembled from packets.
 struct IncomingMessage {
     header: PacketHeader,
     body: Vec<u8>,
     received: usize,
-    acked: usize,
-}
-
-struct OutgoingMessage {
-    message: Message,
-    response_tx: Option<oneshot::Sender<Response>>,
-    sent: usize,
     acked: usize,
 }
 
@@ -72,412 +61,482 @@ impl BeepishClient {
         }
     }
 
-    async fn connect(&self, service_info: &ServiceInfo) -> Result<Arc<ClientConnection>> {
+    /// Get or create a connection to the given service.
+    pub async fn get_connection(
+        &self,
+        service_info: &ServiceInfo,
+    ) -> Result<Arc<ConnectionHandle>> {
         let mut connections = self.connections.lock().await;
 
-        use std::collections::hash_map::Entry;
-        match connections.entry(service_info.uri.clone()) {
-            Entry::Occupied(entry) => Ok(entry.get().clone()),
-            Entry::Vacant(entry) => {
-                let connection = Arc::new(ClientConnection::new(&self.config, service_info).await?);
-                Ok(entry.insert(connection).clone())
+        // Check if we have an open connection
+        if let Some(conn) = connections.get(&service_info.uri) {
+            if !conn.closed.load(Ordering::Relaxed) {
+                return Ok(conn.clone());
             }
+            // Connection is closed, remove it
+            connections.remove(&service_info.uri);
         }
-    }
-}
 
-impl Client for BeepishClient {
-    async fn request<'a>(
+        // Create new connection
+        let handle = ConnectionHandle::connect(&self.config, service_info).await?;
+        let handle = Arc::new(handle);
+        connections.insert(service_info.uri.clone(), handle.clone());
+
+        // Connection cleanup happens lazily: when get_connection() finds a
+        // closed connection, it removes it and creates a new one.
+
+        Ok(handle)
+    }
+
+    /// Send a request and await the response.
+    pub async fn request(
         &self,
-        action: &'a ActionEntry,
-        headers: BTreeMap<String, String>,
-        body: Box<dyn AsyncRead + Unpin + Send>,
-    ) -> Result<Response> {
-        //         let connection = self.connect(&action.service_info).await?;
+        service_info: &ServiceInfo,
+        action: &str,
+        version: i32,
+        envelope: EnvelopeFormat,
+        ticket: &str,
+        client_id: i64,
+        body: Vec<u8>,
+        timeout_secs: Option<u64>,
+    ) -> Result<ScampResponse> {
+        let conn = self.get_connection(service_info).await?;
+        let timeout_duration =
+            Duration::from_secs(timeout_secs.unwrap_or(DEFAULT_TIMEOUT_SECS));
 
-        //         // let (response_tx, response_rx) = oneshot::channel();
-
-        //         // let request = Message::new(PacketHeader::Request(headers), body);
-        //         // connection.send_message(request, response_tx).await?;
-
-        //         // match tokio::time::timeout(Duration::from_secs(30), response_rx).await {
-        //         //     Ok(Ok(response)) => Ok(response),
-        //         //     Ok(Err(_)) => Err(anyhow!("Failed to receive response")),
-        //         //     Err(_) => Err(anyhow!("Request timed out")),
-        //         // }
-        todo!()
+        conn.send_request(action, version, envelope, ticket, client_id, body, timeout_duration)
+            .await
     }
 }
 
-impl ClientConnection {
-    async fn new(config: &Config, service_info: &ServiceInfo) -> Result<Self> {
+impl ConnectionHandle {
+    /// Establish a new TLS connection to a SCAMP service.
+    async fn connect(config: &Config, service_info: &ServiceInfo) -> Result<Self> {
         let tls = native_tls::TlsConnector::builder()
-            .danger_accept_invalid_certs(true) // Note: Only use this for testing!
+            .danger_accept_invalid_certs(true)
             .build()?;
         let connector = TlsConnector::from(tls);
 
         let addr = service_info.socket_addr();
 
-        // Add timeout to TCP connection
         let stream = timeout(Duration::from_secs(30), TcpStream::connect(addr))
             .await
             .context("TCP connection timed out")?
-            .context("Failed to connect to TCP stream")?;
+            .context("Failed to connect")?;
 
-        //         // Add timeout to TLS connection
-        let mut tls_stream = timeout(
+        stream.set_nodelay(true)?;
+
+        let tls_stream = timeout(
             Duration::from_secs(30),
-            connector.connect("foo.com", stream),
+            connector.connect(&addr.ip().to_string(), stream),
         )
         .await
-        .context("TLS connection timed out")?
-        .context("Failed to establish TLS connection")?;
+        .context("TLS handshake timed out")?
+        .context("TLS handshake failed")?;
 
-        // No handshake — go straight to packet I/O after TLS.
-        // The BEEP\r\n handshake was a scamp-rs invention that no other
-        // implementation supports. Perl/Go/JS all begin packet exchange
-        // immediately after TLS completes.
+        // No protocol-level handshake — go straight to packet I/O.
+        // Perl/Go/JS all begin packet exchange immediately after TLS.
 
         let (reader, writer) = tokio::io::split(tls_stream);
 
-        // spawn a task to handle inbound messages
-        // the task should be able to directly own the reader without an Arc
+        // Channel for serialized writes — all packets go through here
+        let (writer_tx, writer_rx) = mpsc::channel::<Packet>(256);
 
-        let mut connection = ClientConnection {
-            config: config.clone(),
-            writer: Arc::new(writer),
-            reader_handle: None,
-            //             incoming: HashMap::new(),
-            //             outgoing: HashMap::new(),
-            //             next_incoming_id: 0,
-            //             next_outgoing_id: 0,
-            //             heartbeat_interval: None,
-            //             last_heartbeat: Instant::now(),
+        // Pending requests map — keyed by request_id
+        let pending: Arc<Mutex<HashMap<i64, oneshot::Sender<ScampResponse>>>> =
+            Arc::new(Mutex::new(HashMap::new()));
+
+        // Spawn writer task
+        let writer_handle = tokio::spawn(Self::writer_task(writer, writer_rx));
+
+        // Spawn reader task
+        let pending_clone = pending.clone();
+        let writer_tx_clone = writer_tx.clone();
+        let reader_handle =
+            tokio::spawn(Self::reader_task(reader, pending_clone, writer_tx_clone));
+
+        Ok(ConnectionHandle {
+            writer_tx,
+            pending,
+            next_request_id: AtomicI64::new(1), // Perl starts at 1
+            next_outgoing_msg_no: AtomicU64::new(0), // All impls start at 0
+            closed: AtomicBool::new(false),
+            reader_handle,
+            writer_handle,
+        })
+    }
+
+    /// Send a request and await the response with timeout.
+    pub async fn send_request(
+        &self,
+        action: &str,
+        version: i32,
+        envelope: EnvelopeFormat,
+        ticket: &str,
+        client_id: i64,
+        body: Vec<u8>,
+        timeout_duration: Duration,
+    ) -> Result<ScampResponse> {
+        if self.closed.load(Ordering::Relaxed) {
+            return Err(anyhow!("Connection is closed"));
+        }
+
+        // Allocate request_id (sequential, starting from 1 — matches Perl)
+        let request_id = self.next_request_id.fetch_add(1, Ordering::Relaxed);
+
+        // Allocate outgoing message number (starting from 0)
+        let msg_no = self.next_outgoing_msg_no.fetch_add(1, Ordering::Relaxed);
+
+        // Create response channel
+        let (response_tx, response_rx) = oneshot::channel();
+
+        // Insert into pending map
+        {
+            let mut pending = self.pending.lock().await;
+            pending.insert(request_id, response_tx);
+        }
+
+        // Build header
+        let header = PacketHeader {
+            action: action.to_string(),
+            envelope,
+            error: None,
+            error_code: None,
+            request_id: FlexInt(request_id),
+            client_id: FlexInt(client_id),
+            ticket: ticket.to_string(),
+            identifying_token: String::new(),
+            message_type: MessageType::Request,
+            version,
         };
 
-        connection.setup_reader(reader)?;
+        // Send HEADER packet
+        let header_packet = Packet {
+            packet_type: PacketType::Header,
+            msg_no,
+            packet_header: Some(header),
+            body: vec![],
+        };
 
-        let heartbeat_interval = config
-            .get::<u64>("beepish.heartbeat_interval")
-            .unwrap_or(Ok(10))?;
+        if self.writer_tx.send(header_packet).await.is_err() {
+            self.remove_pending(request_id).await;
+            return Err(anyhow!("Connection closed while sending header"));
+        }
 
-        let mut interval_timer = tokio::time::interval(Duration::from_secs(heartbeat_interval));
-        // connection.set_heartbeat(Duration::from_millis(heartbeat_interval))?;
-        tokio::spawn(async move {
-            loop {
-                interval_timer.tick().await;
-
-                let packet = Packet {
-                    packet_type: PacketType::Ping,
-                    msg_no: 0,
-                    body: vec![],
-                    packet_header: None,
-                };
-                // self.send_packet(packet).await?;
-                todo!()
+        // Send DATA packets (chunked at DATA_CHUNK_SIZE)
+        let mut offset = 0;
+        while offset < body.len() {
+            let end = (offset + DATA_CHUNK_SIZE).min(body.len());
+            let chunk = body[offset..end].to_vec();
+            let data_packet = Packet {
+                packet_type: PacketType::Data,
+                msg_no,
+                packet_header: None,
+                body: chunk,
+            };
+            if self.writer_tx.send(data_packet).await.is_err() {
+                self.remove_pending(request_id).await;
+                return Err(anyhow!("Connection closed while sending data"));
             }
-        });
+            offset = end;
+        }
 
-        Ok(connection)
-    }
+        // Send EOF packet (empty body — required by Perl)
+        let eof_packet = Packet {
+            packet_type: PacketType::Eof,
+            msg_no,
+            packet_header: None,
+            body: vec![],
+        };
+        if self.writer_tx.send(eof_packet).await.is_err() {
+            self.remove_pending(request_id).await;
+            return Err(anyhow!("Connection closed while sending EOF"));
+        }
 
-    fn setup_reader(&mut self, reader: ReadHalf<TlsStream<TcpStream>>) -> Result<()> {
-        let reader_handle = tokio::spawn(async move {
-            let mut reader = BufReader::new(reader);
-
-            loop {
-                // Fill the buffer with data from the reader
-                let buf = reader.fill_buf().await.unwrap_or(&[]);
-                if buf.is_empty() {
-                    break;
-                }
-
-                let mut bytes_used = 0;
-
-                while bytes_used < buf.len() {
-                    match Packet::parse(&buf[bytes_used..]) {
-                        ParseResult::TooShort => {
-                            // Not enough data to determine packet length, wait for more data
-                            break;
-                        }
-                        ParseResult::NeedBytes { bytes } => {
-                            // Not enough data for the full packet, wait for more data
-                            if bytes_used + bytes > buf.len() {
-                                // This shouldn't happen with BufReader, but handle it just in case
-                                break;
-                            }
-                            break;
-                        }
-                        ParseResult::Drop { bytes_used: used } => {
-                            // Drop the packet and consume the used bytes
-                            bytes_used += used;
-                        }
-                        ParseResult::Success {
-                            packet,
-                            bytes_used: used,
-                        } => {
-                            // Successfully parsed a packet, consume the used bytes
-                            bytes_used += used;
-                            Self::receive_packet(packet);
-                        }
-                        ParseResult::Fatal(err) => {
-                            // Handle fatal error, close the connection
-                            eprintln!("Fatal error: {}", err);
-                            return;
-                        }
-                    }
-                }
-
-                // Consume the processed data from the buffer
-                reader.consume(bytes_used);
+        // Await response with timeout
+        match timeout(timeout_duration, response_rx).await {
+            Ok(Ok(response)) => Ok(response),
+            Ok(Err(_)) => {
+                // Channel closed — connection lost
+                Err(anyhow!("Connection lost while waiting for response"))
             }
-        });
-
-        self.reader_handle = Some(reader_handle);
-
-        Ok(())
-    }
-    fn receive_packet(packet: Packet) {
-        match packet.packet_type {
-            PacketType::Header => {
-                // Handle HEADER packet
-            }
-            PacketType::Data => {
-                // Handle DATA packet
-            }
-            PacketType::Eof => {
-                // Handle EOF packet
-            }
-            PacketType::Txerr => {
-                // Handle TXERR packet
-            }
-            PacketType::Ack => {
-                // Handle ACK packet
-            }
-            PacketType::Ping => {
-                // Handle PING packet
-            }
-            PacketType::Pong => {
-                // Handle PONG packet
+            Err(_) => {
+                // Timeout
+                self.remove_pending(request_id).await;
+                Err(anyhow!(
+                    "Request timed out after {:?}",
+                    timeout_duration
+                ))
             }
         }
     }
-    async fn send_packet(&mut self, packet: Packet) -> Result<()> {
-        // let mut stream = self.stream.lock().await;
-        // packet.write(&*self.writer).await?;
-        todo!();
-        Ok(())
+
+    async fn remove_pending(&self, request_id: i64) {
+        let mut pending = self.pending.lock().await;
+        pending.remove(&request_id);
     }
-    //     // Removed beepish_handshake method
 
-    //     fn set_heartbeat(&mut self, interval: Duration) -> Result<()> {
-    //         self.heartbeat_interval = Some(interval);
+    /// Writer task: receives packets from the channel and writes them to the TLS stream.
+    async fn writer_task(
+        mut writer: WriteHalf<TlsStream<TcpStream>>,
+        mut rx: mpsc::Receiver<Packet>,
+    ) {
+        while let Some(packet) = rx.recv().await {
+            if let Err(e) = packet.write(&mut writer).await {
+                log::error!("Error writing packet: {}", e);
+                break;
+            }
+            // Flush after each packet to ensure timely delivery
+            if let Err(e) = writer.flush().await {
+                log::error!("Error flushing writer: {}", e);
+                break;
+            }
+        }
+    }
 
-    //         let stream = Arc::clone(&self.stream);
-    //         l
+    /// Reader task: reads packets from the TLS stream, assembles messages,
+    /// and delivers completed responses to pending requesters.
+    async fn reader_task(
+        reader: ReadHalf<TlsStream<TcpStream>>,
+        pending: Arc<Mutex<HashMap<i64, oneshot::Sender<ScampResponse>>>>,
+        writer_tx: mpsc::Sender<Packet>,
+    ) {
+        let mut reader = BufReader::new(reader);
+        let mut incoming: HashMap<u64, IncomingMessage> = HashMap::new();
+        let mut next_incoming_msg_no: u64 = 0; // Starts at 0 — matches all implementations
 
-    //         Ok(())
-    //     }
+        loop {
+            // Fill the buffer
+            let buf = match reader.fill_buf().await {
+                Ok(buf) if buf.is_empty() => break, // EOF
+                Ok(buf) => buf,
+                Err(e) => {
+                    log::error!("Read error: {}", e);
+                    break;
+                }
+            };
 
-    //     async fn handle_heartbeat(&mut self) -> Result<()> {
-    //         if let Some(interval) = self.heartbeat_interval {
-    //             if self.last_heartbeat.elapsed() >= interval {
-    //                 self.send_ping().await?;
-    //                 self.last_heartbeat = Instant::now();
-    //             }
-    //         }
-    //         Ok(())
-    //     }
+            let mut bytes_consumed = 0;
 
-    //     async fn handle_pong(&mut self) -> Result<()> {
-    //         self.last_heartbeat = Instant::now();
-    //         Ok(())
-    //     }
+            while bytes_consumed < buf.len() {
+                match Packet::parse(&buf[bytes_consumed..]) {
+                    ParseResult::TooShort | ParseResult::NeedBytes { .. } => break,
 
-    //     async fn send_message(
-    //         &mut self,
-    //         msg: Message,
-    //         response_tx: oneshot::Sender<Response>,
-    //     ) -> Result<()> {
-    //         let id = {
-    //             let mut outgoing = self.outgoing.lock().await;
-    //             let id = self.next_outgoing_id;
-    //             self.next_outgoing_id += 1;
+                    ParseResult::Drop { bytes_used } => {
+                        bytes_consumed += bytes_used;
+                    }
 
-    //             outgoing.insert(
-    //                 id,
-    //                 OutgoingMessage {
-    //                     message: msg,
-    //                     response_tx: Some(response_tx),
-    //                     sent: 0,
-    //                     acked: 0,
-    //                 },
-    //             );
+                    ParseResult::Success {
+                        packet,
+                        bytes_used,
+                    } => {
+                        bytes_consumed += bytes_used;
 
-    //             id
-    //         };
+                        Self::route_packet(
+                            packet,
+                            &mut incoming,
+                            &mut next_incoming_msg_no,
+                            &pending,
+                            &writer_tx,
+                        )
+                        .await;
+                    }
 
-    //         self.send_packet(PacketType::Header, id, &serde_json::to_vec(&msg.header)?)
-    //             .await?;
+                    ParseResult::Fatal(err) => {
+                        log::error!("Fatal protocol error: {}", err);
+                        // Clean up all pending requests
+                        let mut pend = pending.lock().await;
+                        for (_, tx) in pend.drain() {
+                            let _ = tx.send(ScampResponse {
+                                header: PacketHeader::default(),
+                                body: vec![],
+                                error: Some(format!("Protocol error: {err}")),
+                            });
+                        }
+                        return;
+                    }
+                }
+            }
 
-    //         // Start sending data packets
-    //         self.send_data_packets(id).await?;
+            reader.consume(bytes_consumed);
+        }
 
-    //         Ok(())
-    //     }
+        // Connection closed — notify all pending requests
+        let mut pend = pending.lock().await;
+        for (_, tx) in pend.drain() {
+            let _ = tx.send(ScampResponse {
+                header: PacketHeader::default(),
+                body: vec![],
+                error: Some("Connection lost".to_string()),
+            });
+        }
+    }
 
-    //     async fn send_data_packets(&mut self, id: u64) -> Result<()> {
-    //         let outgoing = self
-    //             .outgoing
-    //             .get_mut(&id)
-    //             .ok_or_else(|| anyhow!("Message not found"))?;
-    //         let mut buffer = [0u8; 1024];
+    /// Route a single packet to the appropriate handler.
+    /// Implements message assembly from HEADER → DATA* → EOF/TXERR.
+    async fn route_packet(
+        packet: Packet,
+        incoming: &mut HashMap<u64, IncomingMessage>,
+        next_incoming_msg_no: &mut u64,
+        pending: &Arc<Mutex<HashMap<i64, oneshot::Sender<ScampResponse>>>>,
+        writer_tx: &mpsc::Sender<Packet>,
+    ) {
+        match packet.packet_type {
+            PacketType::Header => {
+                // Validate sequential message number (Perl Connection.pm:140)
+                if packet.msg_no != *next_incoming_msg_no {
+                    log::error!(
+                        "Out of sequence message: expected {} got {}",
+                        *next_incoming_msg_no,
+                        packet.msg_no
+                    );
+                    return;
+                }
+                *next_incoming_msg_no += 1;
 
-    //         loop {
-    //             match outgoing.message.body.read(&mut buffer).await {
-    //                 Ok(0) => break, // EOF
-    //                 Ok(n) => {
-    //                     self.send_packet(
-    //                         PacketType::Data,
-    //                         id,
-    //                         &buffer[..n],
-    //                     )
-    //                     .await?;
-    //                     outgoing.sent += n;
-    //                     if outgoing.sent - outgoing.acked >= MAX_FLOW {
-    //                         break; // Flow control: pause sending
-    //                     }
-    //                 }
-    //                 Err(e) => return Err(e.into()),
-    //             }
-    //         }
+                let header = match packet.packet_header {
+                    Some(h) => h,
+                    None => return,
+                };
 
-    //         if outgoing.message.body.read(&mut buffer).await? == 0 {
-    //             // All data sent, send EOF
-    //             self.send_packet(
-    //                 PacketType::Eof,
-    //                 id,
-    //                 &[] as &[u8],
-    //             )
-    //             .await?;
-    //         }
+                incoming.insert(
+                    packet.msg_no,
+                    IncomingMessage {
+                        header,
+                        body: Vec::new(),
+                        received: 0,
+                        acked: 0,
+                    },
+                );
+            }
 
-    //         Ok(())
-    //     }
+            PacketType::Data => {
+                let msg = match incoming.get_mut(&packet.msg_no) {
+                    Some(m) => m,
+                    None => {
+                        log::error!("Received DATA with no active message for msgno {}", packet.msg_no);
+                        return;
+                    }
+                };
 
-    //     async fn handle_incoming_packet(&mut self, packet: Packet) -> Result<()> {
-    //         match packet.packet_type {
-    //             PacketType::Header => self.handle_header_packet(packet).await?,
-    //             PacketType::Data => self.handle_data_packet(packet).await?,
-    //             PacketType::Eof => self.handle_eof_packet(packet).await?,
-    //             PacketType::Txerr => self.handle_txerr_packet(packet).await?,
-    //             PacketType::Ack => self.handle_ack_packet(packet).await?,
-    //             PacketType::Ping => {
-    //                 self.send_packet(
-    //                     PacketType::Pong,
-    //                     packet.msg_no,
-    //                     &[] as &[u8],
-    //                 )
-    //                 .await?;
-    //             }
-    //             PacketType::Pong => self.handle_pong().await?,
-    //         }
-    //         Ok(())
-    //     }
+                if packet.body.is_empty() {
+                    return; // JS skips empty DATA (connection.js:202)
+                }
 
-    //     async fn handle_header_packet(&mut self, packet: Packet) -> Result<()> {
-    //         let header: PacketHeader = serde_json::from_slice(&packet.payload)?;
-    //         let incoming = IncomingMessage {
-    //             header,
-    //             body: Vec::new(),
-    //             received: 0,
-    //             acked: 0,
-    //         };
-    //         self.incoming.insert(packet.msg_no, incoming);
-    //         Ok(())
-    //     }
+                msg.body.extend_from_slice(&packet.body);
+                msg.received += packet.body.len();
 
-    //     async fn handle_data_packet(&mut self, packet: Packet) -> Result<()> {
-    //         let incoming = self
-    //             .incoming
-    //             .get_mut(&packet.msg_no)
-    //             .ok_or_else(|| anyhow!("Received DATA for unknown message"))?;
-    //         incoming.body.extend_from_slice(&packet.payload);
-    //         incoming.received += packet.payload.len();
+                // Send ACK with cumulative bytes received (decimal string)
+                // Perl Connection.pm:153, JS connection.js:208
+                let ack_body = msg.received.to_string();
+                msg.acked = msg.received;
+                let ack_packet = Packet {
+                    packet_type: PacketType::Ack,
+                    msg_no: packet.msg_no,
+                    packet_header: None,
+                    body: ack_body.into_bytes(),
+                };
+                let _ = writer_tx.send(ack_packet).await;
+            }
 
-    //         // Send ACK if we've received a significant amount of data
-    //         if incoming.received - incoming.acked >= MAX_FLOW / 2 {
-    //             self.send_packet(
-    //                 PacketType::Ack,
-    //                 packet.msg_no,
-    //                 &incoming.received.to_le_bytes(),
-    //             )
-    //             .await?;
-    //             incoming.acked = incoming.received;
-    //         }
-    //         Ok(())
-    //     }
+            PacketType::Eof => {
+                // EOF body must be empty (Perl Connection.pm:162)
+                if !packet.body.is_empty() {
+                    log::error!("EOF packet must be empty");
+                    return;
+                }
 
-    //     async fn handle_eof_packet(&mut self, packet: Packet) -> Result<()> {
-    //         let incoming = self
-    //             .incoming
-    //             .remove(&packet.msg_no)
-    //             .ok_or_else(|| anyhow!("Received EOF for unknown message"))?;
+                let msg = match incoming.remove(&packet.msg_no) {
+                    Some(m) => m,
+                    None => {
+                        log::error!("Received EOF with no active message for msgno {}", packet.msg_no);
+                        return;
+                    }
+                };
 
-    //         let response = Response {
-    //             headers: incoming.header.into_headers(),
-    //             body: incoming.body,
-    //         };
+                // Deliver to pending requester by request_id
+                let request_id = msg.header.request_id.0;
+                let mut pend = pending.lock().await;
+                if let Some(tx) = pend.remove(&request_id) {
+                    let _ = tx.send(ScampResponse {
+                        header: msg.header,
+                        body: msg.body,
+                        error: None,
+                    });
+                }
+            }
 
-    //         if let Some(outgoing) = self.outgoing.remove(&packet.msg_no) {
-    //             if let Some(response_tx) = outgoing.response_tx {
-    //                 response_tx
-    //                     .send(response)
-    //                     .map_err(|_| anyhow!("Failed to send response"))?;
-    //             }
-    //         }
+            PacketType::Txerr => {
+                let msg = match incoming.remove(&packet.msg_no) {
+                    Some(m) => m,
+                    None => {
+                        log::error!("Received TXERR with no active message for msgno {}", packet.msg_no);
+                        return;
+                    }
+                };
 
-    //         Ok(())
-    //     }
+                let error_text = String::from_utf8_lossy(&packet.body).to_string();
 
-    //     async fn handle_txerr_packet(&mut self, packet: Packet) -> Result<()> {
-    //         let error_message = String::from_utf8(packet.payload)?;
-    //         log::error!(
-    //             "Received TXERR for message {}: {}",
-    //             packet.msg_no,
-    //             error_message
-    //         );
+                // Deliver as error to pending requester
+                let request_id = msg.header.request_id.0;
+                let mut pend = pending.lock().await;
+                if let Some(tx) = pend.remove(&request_id) {
+                    let _ = tx.send(ScampResponse {
+                        header: msg.header,
+                        body: msg.body,
+                        error: Some(error_text),
+                    });
+                }
+            }
 
-    //         if let Some(outgoing) = self.outgoing.remove(&packet.msg_no) {
-    //             if let Some(response_tx) = outgoing.response_tx {
-    //                 let error_response = Response {
-    //                     headers: BTreeMap::new(),
-    //                     body: error_message.into_bytes(),
-    //                 };
-    //                 response_tx
-    //                     .send(error_response)
-    //                     .map_err(|_| anyhow!("Failed to send error response"))?;
-    //             }
-    //         }
+            PacketType::Ack => {
+                // ACK for outgoing messages — flow control
+                // For now we don't implement send-side flow control pause/resume
+                // since we send all data immediately. This will be needed for
+                // large message streaming.
+                // Perl Connection.pm:177-183 validates the ACK value
+            }
 
-    //         self.incoming.remove(&packet.msg_no);
-    //         Ok(())
-    //     }
+            PacketType::Ping => {
+                // Respond with PONG (JS connection.js:257)
+                let pong = Packet {
+                    packet_type: PacketType::Pong,
+                    msg_no: packet.msg_no,
+                    packet_header: None,
+                    body: vec![],
+                };
+                let _ = writer_tx.send(pong).await;
+            }
 
-    //     async fn handle_ack_packet(&mut self, packet: Packet) -> Result<()> {
-    //         let acked = u64::from_le_bytes(
-    //             packet
-    //                 .payload
-    //                 .try_into()
-    //                 .map_err(|_| anyhow!("Invalid ACK payload"))?,
-    //         );
-    //         if let Some(outgoing) = self.outgoing.get_mut(&packet.msg_no) {
-    //             outgoing.acked = acked;
-    //             if outgoing.sent - outgoing.acked < MAX_FLOW {
-    //                 // Resume sending if we were paused due to flow control
-    //                 self.send_data_packets(packet.msg_no).await?;
-    //             }
-    //         }
-    //         Ok(())
-    //     }
+            PacketType::Pong => {
+                // Heartbeat response received — would reset heartbeat timer
+                // Not implemented yet since heartbeat is disabled by default
+            }
+        }
+    }
+}
+
+impl Default for PacketHeader {
+    fn default() -> Self {
+        PacketHeader {
+            action: String::new(),
+            envelope: EnvelopeFormat::Json,
+            error: None,
+            error_code: None,
+            request_id: FlexInt(0),
+            client_id: FlexInt(0),
+            ticket: String::new(),
+            identifying_token: String::new(),
+            message_type: MessageType::Request,
+            version: 1,
+        }
+    }
+}
+
+impl Drop for ConnectionHandle {
+    fn drop(&mut self) {
+        self.closed.store(true, Ordering::Relaxed);
+        self.reader_handle.abort();
+        self.writer_handle.abort();
+    }
 }
