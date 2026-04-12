@@ -9,11 +9,11 @@ Status legend: `[ ]` todo, `[~]` in progress, `[x]` done, `[!]` blocked
 
 ## Phase 0: Critical Interop Fix + Cleanup
 
-- [ ] **P0-1** Remove `BEEP\r\n` handshake from `src/transport/beepish/client.rs` (lines ~136-147). No other implementation does this. Breaks all interop.
-- [ ] **P0-2** Remove dead code: `src/message/`, `src/common/`, `src/error.rs`, `src/agent/`, `src/action.rs`, `src/transport/beepish/tcp.rs`
-- [ ] **P0-3** Clean `src/lib.rs`: remove all commented-out module declarations and re-exports
-- [ ] **P0-4** Remove unused deps from Cargo.toml: `pnet`, `net2`, `atty`
-- [ ] **P0-5** Verify `cargo build && cargo test && cargo clippy` pass
+- [x] **P0-1** Remove `BEEP\r\n` handshake from `src/transport/beepish/client.rs`
+- [x] **P0-2** Remove dead code: `src/message/`, `src/common/`, `src/error.rs`, `src/agent/`, `src/action.rs`, `src/transport/beepish/tcp.rs`
+- [x] **P0-3** Clean `src/lib.rs`: remove all commented-out module declarations and re-exports
+- [x] **P0-4** Remove unused deps from Cargo.toml: `pnet`, `net2`, `atty`
+- [x] **P0-5** Verify `cargo build && cargo test && cargo clippy` pass
 
 ## Phase 1: Transport Core
 
