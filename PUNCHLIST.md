@@ -3,142 +3,242 @@
 Status legend: `[ ]` todo, `[~]` in progress, `[x]` done
 
 > **Reference priority**: Perl (gt-soa/perl) > scamp-js > gt-soa/js > scamp-go.
-> Comprehensive deficiency audit in DEFICIENCIES.md (58 items across wire protocol,
-> service/discovery, and config/security).
+>
+> Structured around **verification milestones** — each milestone has a dependency
+> chain and a concrete test that proves it works. After each milestone, we will
+> re-dispatch audit agents (one per reference implementation) to verify parity
+> by direct comparison to the canonical implementations.
+>
+> Comprehensive deficiency audit: see DEFICIENCIES.md (58 items).
 
 ---
 
-## Phase 0: Cleanup ✓
+## Completed Work
 
-- [x] Remove `BEEP\r\n` handshake
-- [x] Delete dead modules
-- [x] Clean lib.rs
-- [x] Remove unused deps (pnet, net2, atty)
-- [x] cargo build/test/clippy pass
-
-## Phase 1: Wire Protocol Correctness
-
-### Done
-- [x] PacketHeader serde: `"type"` field name, lowercase enums, FlexInt
+- [x] Phase 0: BEEP handshake removed, dead code deleted, deps cleaned
+- [x] PacketHeader serde: `"type"` field, lowercase enums, FlexInt, skip_serializing optional fields
 - [x] Message assembly (inbound): HEADER→DATA*→EOF/TXERR, msgno from 0
-- [x] Message serialization (outbound): HEADER + DATA chunks + EOF
-- [x] Request-response correlation: sequential request_id from 1
-- [x] ACK sending on DATA receipt (decimal string format)
-- [x] PING/PONG disabled by default, PONG response
-
-### Remaining
-- [ ] **W-1** Header line parsing: require `\r\n` explicitly (Perl regex requires `\015\012`)
-- [ ] **W-3** Always serialize `action`, `ticket`, `identifying_token` in JSON (remove `skip_serializing_if`)
-- [ ] **W-4** Send-side flow control: validate incoming ACKs (format `/^[1-9][0-9]*$/`, monotonic, not past sent), pause when `sent - acked >= 65536`, resume on ACK
-- [ ] **W-7** Reader task must set `closed` flag on exit (currently only set in Drop)
-- [ ] **W-8** Unknown packet types: change from silent Drop to Fatal (matches Perl/JS/Go)
-- [ ] **W-9** Malformed HEADER JSON: change from silent Drop to Fatal (matches Perl/JS/Go)
-- [ ] **W-11** Connection idle timeout: implement `_adj_timeout` logic (busy/pending → no timeout, idle → configured timeout). Read `beepish.client_timeout` (default 90s) and `beepish.server_timeout` (default 120s).
-- [ ] **W-13** Read `rpc.timeout` from config (default 75s). Read `beepish.client_timeout` (default 90s).
-
-## Phase 2: TLS & Certificate Security
-
-- [ ] **C-2** Client-side TLS fingerprint verification: after TLS handshake, extract peer cert, compute SHA1 fingerprint, compare against announced fingerprint. Mismatch = fatal.
-- [ ] **C-4** Certificate fingerprinting: SHA1 of DER cert → uppercase hex colon-separated (`XX:XX:XX:...`). Add to ServiceInfo.
-- [ ] **W-5** Write corking: buffer outbound packets until fingerprint verification completes. Flush on success, destroy on failure. (Matches Perl Connection.pm:33-74)
-- [ ] **C-8** Pass fingerprint through from ServiceRegistry → ConnectionHandle for verification
-- [ ] Consider migrating from `tokio-native-tls` to `tokio-rustls` for peer cert access and pure-Rust TLS
-
-## Phase 3: Signature Verification & Authorization
-
-- [ ] **C-3** Implement RSA PKCS1v15 SHA256 signature verification in `packet.rs` (replace stub). Verify against real Perl-generated announcements from dev cache.
-- [ ] **S-13** Compute SHA1 fingerprint during announcement parsing and store in ServiceInfo/ActionEntry
-- [ ] **C-5** Implement `authorized_services` file parsing:
-  - Read `bus.authorized_services` config path
-  - Format: `fingerprint tokens` per line, `#` comments
-  - Tokens comma-separated, `quotemeta`-escaped, `:ALL` → `:.*`, no `:` → `main:` prefix
-  - Regex: `/^(?:tok1|tok2)(?:\.|$)/i`
-  - `_meta.*` always authorized
-  - Reject `:` in sector or action name
-  - Hot-reload on file mtime change
-- [ ] **C-7** Ticket verification:
-  - Parse `version,userId,clientId,timestamp,ttl,privs,signature`
-  - Privs: `+` separated
-  - Sig: pop last comma-field, base64url decode, PKCS1v15 SHA256 verify
-  - Expiry: `timestamp + ttl < now`
-  - Key from config or `/etc/GT/auth/ticket_verify_public_key.pem`
-
-## Phase 4: Discovery — Multicast & Cache
-
-- [ ] **S-1** UDP multicast announcement sending:
-  - Create UDP socket, join multicast group (config `discovery.multicast_address` default `239.63.248.106`, port `discovery.port` default `5555`)
-  - Bind to interface from `bus.address` / `discovery.address` config
-  - Send compressed announcement every `interval` seconds (default 5s)
-  - **S-3** Zlib compress packets before sending (Perl `compress($pkt, 9)`)
-- [ ] **S-2** UDP multicast receiving (for live discovery):
-  - Listen on multicast group
-  - **S-6.2** Strip leading `R`/`D` prefix bytes
-  - **S-6.3** Decompress (zlib), fallback to raw
-  - Inject into ServiceRegistry
-- [ ] **S-4** V4 extension hash in announcements: append RLE-encoded action vectors as last element of envelopes array
-- [ ] **S-5** Implement `__torle` RLE encoding for v4 vectors
-- [ ] **S-9** Cache file header stripping: discard first chunk before `%%%` (Perl `ServiceManager.pm:92`)
-- [ ] **S-10** Cache staleness check: verify mtime < `discovery.cache_max_age` (default 120s)
-- [ ] **S-11** Announcement expiry/TTL: `now + send_interval_sec * 2.1` for dynamic entries
-- [ ] **S-12** Timestamp replay protection: track per-identity timestamps, reject stale
-- [ ] **S-24** Cache refresh: periodic reload (Perl reloads each `fill_from_cache`, rate-limited 1/sec)
-
-## Phase 5: Service Infrastructure Fixes
-
-- [ ] **S-8** Graceful shutdown:
-  - Send weight=0 announcements (10 rounds at 1s interval — Perl, or rapid 4x200ms — JS)
-  - Stop accepting new connections
-  - Wait for active handlers to complete
-  - Close connections, stop announcer
-  - **S-16** Handle SIGTERM/SIGINT via `tokio::signal`
-- [ ] **S-14** Fix CRUD alias tag: use `"destroy"` not `"delete"` (matches Perl/JS)
-- [ ] **S-15** Filter v4 actions where `accompat != 1` (uncomment and fix existing code)
-- [ ] **S-17** Server connection idle timeout (default 120s from `beepish.server_timeout`)
-- [ ] **S-18** Track active request count per connection (needed for graceful shutdown, busy flag)
-- [ ] **S-19** Base64 line-wrapping: use 76-char lines for signature encoding (match Perl `encode_base64`)
-- [ ] **S-20** Filter flags to announceable set during packet building (`read, update, destroy, create, noauth, secret`)
-- [ ] **S-21** Make weight configurable (not hardcoded 1)
-- [ ] **S-22** Compute per-action timeout from `t600` flags (value + 5s padding) and return to caller
-
-## Phase 6: Configuration & Behavioral Parity
-
-- [ ] **C-1** Read all config keys: `bus.address`, `bus.authorized_services`, `discovery.*`, `beepish.*`, `rpc.timeout`
-- [ ] **C-6** Implement bus_info() interface resolution: `bus.address` → IP, support `if:ethN` syntax, auto-detect 10.x/192.168.x
-- [ ] **C-9** Check `GTSOA` env var in addition to `SCAMP_CONFIG`
-- [ ] **C-11** Separate three timeout values: `beepish.server_timeout` (120s), `beepish.client_timeout` (90s), `rpc.timeout` (75s)
-- [ ] **C-14** High-level Requester API: cache fill → action lookup → connect → request → JSON decode → error normalization
-- [ ] **C-15** Config: first-wins for duplicate keys (match Perl)
-- [ ] **C-16** Config: strip inline `# comments` (match Perl)
-- [ ] **S-23** Bind to configured `service.address` interface, not `0.0.0.0`
-
-## Testing
-
-### Unit
-- [x] Packet parse/write roundtrip
-- [x] PacketHeader serde (`"type"`, lowercase enums, FlexInt)
-- [ ] Config parsing with inline comments and duplicate keys
-- [ ] Announcement signature verification against real dev cache data
-- [ ] Certificate fingerprint matches `openssl x509 -fingerprint -sha1`
-- [ ] authorized_services regex matching
-- [ ] Ticket parsing and verification
-
-### Live Interop (Docker on gtnet via `gud dev`)
-- [x] **Rust client → Perl service**: health_check and _meta.documentation (400KB+)
-- [ ] **Rust client → Go service**: soabridge request (verify no PING sent)
-- [~] **Perl client → Rust service via discovery**: Direct BEEPish::Client works. Full Requester path needs: multicast announcing (S-1), so cache service picks up Rust service, then Perl Requester discovers and calls it through normal pipeline. No cache file hacks.
-- [ ] **lssoa validation**: `docker exec main perl .../lssoa` shows Rust service discovered via multicast (not cache injection)
-- [ ] Connection multiplexing: concurrent requests on one connection
-- [ ] Flow control: large message with ACK-based pause/resume
-- [ ] Graceful shutdown: weight=0 announcement, drain, disappear from cache
+- [x] Message serialization (outbound): HEADER + DATA chunks (131072) + EOF
+- [x] Request-response correlation: sequential request_id from 1, pending map
+- [x] ACK sending on DATA receipt (decimal string)
+- [x] PING/PONG: disabled by default, responds with PONG
+- [x] Connection architecture: mpsc writer, reader task, ConnectionHandle
+- [x] TLS server listener, action registration, request dispatch
+- [x] Announcement packet generation (v3 JSON, RSA PKCS1v15 SHA256 signing)
+- [x] Action index key: `sector:action.vVERSION` with CRUD aliases
+- [x] Docker build pipeline for x86_64 interop testing
 
 ---
 
-## Cross-Implementation Decisions
+## Milestone 1: Secure Client Connection
 
-- [x] **D1** Timestamp: use float seconds (matching Perl `Time::HiRes::time`)
-- [x] **D2** PING/PONG: disabled by default (Perl/Go don't support)
-- [ ] **D3** Multicast compression: must compress (Perl does). Handle both compressed/uncompressed incoming.
-- [x] **D4** Action index key: `sector:action.vVERSION` (matching Perl/JS)
-- [ ] **D7** DATA chunk size: 131072 for sending (all receivers handle it). Consider reducing for flow control.
-- [x] **D8** Signing: PKCS1v15 SHA256 confirmed across all impls (Perl's OAEP call is no-op for signatures)
-- [x] **D9** EOF body: must be empty (validated)
+**Goal**: Rust client connects to Perl services with real TLS fingerprint
+verification instead of `danger_accept_invalid_certs`.
+
+**Dependency chain**:
+1. [ ] Crypto: SHA1 fingerprint of DER-encoded certificate → uppercase hex colon-separated (`XX:XX:XX:...`). Matches Perl `ServiceInfo.pm:82-87` and Go `cert.go:14-31`.
+2. [ ] Store fingerprint + cert_pem in `ServiceInfo` during announcement parsing (in `packet.rs` and `service_info.rs`)
+3. [ ] Propagate fingerprint through `ActionEntry` → `BeepishClient.get_connection()`
+4. [ ] After TLS handshake: extract peer certificate, compute SHA1 fingerprint, compare against announced fingerprint. Mismatch = close connection with error.
+5. [ ] Write corking: buffer outbound packets until fingerprint verification succeeds. Flush on success, destroy on mismatch. (Perl `Connection.pm:33-74`)
+
+**Verification**:
+```bash
+# Must still work — but now with real fingerprint verification:
+docker run --rm --network gtnet -v ~/GT/backplane:/backplane:ro \
+  -e SCAMP_CONFIG=/backplane/etc/soa.conf \
+  scamp-rs-test request --action "api.status.health_check~1" --body '{}'
+```
+
+**Files**: `src/transport/beepish/client.rs`, `src/discovery/packet.rs`, `src/discovery/service_info.rs`, `src/discovery/service_registry.rs`, new `src/crypto.rs`
+
+---
+
+## Milestone 2: Announcement Signature Verification
+
+**Goal**: Rust correctly verifies RSA PKCS1v15 SHA256 signatures on all
+Perl-generated announcements in the discovery cache.
+
+**Dependency chain** (builds on M1 crypto):
+1. [ ] Implement `verify_rsa_sha256(public_key_der, message, signature)` in `crypto.rs`
+2. [ ] In `packet.rs`: replace `signature_is_valid()` stub with real verification — extract public key from cert PEM, verify signature over JSON blob bytes
+3. [ ] Handle base64 decoding of signature (Perl `encode_base64` wraps at 76 chars — handle both wrapped and unwrapped)
+
+**Verification**:
+```bash
+# Parse live dev cache — every announcement must verify:
+cargo test -- --ignored test_verify_real_cache_signatures
+
+# Also: an announcement with a tampered JSON blob must fail verification
+```
+
+**Files**: `src/crypto.rs`, `src/discovery/packet.rs`
+
+---
+
+## Milestone 3: Authorized Services Filtering
+
+**Goal**: Rust service registry only includes actions from services whose
+certificate fingerprint is authorized for those actions.
+
+**Dependency chain** (builds on M1 fingerprint + M2 signature verification):
+1. [ ] Read `bus.authorized_services` path from config
+2. [ ] Parse file: `fingerprint tokens` per line, `#` comments, whitespace trimmed
+3. [ ] Token processing: comma-separated, `quotemeta`-escaped, `:ALL` → `:.*`, no `:` → `main:` prefix
+4. [ ] Build regex per fingerprint: `/^(?:tok1|tok2)(?:\.|$)/i`
+5. [ ] Special cases: `_meta.*` always authorized; reject `:` in sector/action
+6. [ ] Hot-reload: re-read file when mtime changes
+7. [ ] Integrate into `ServiceRegistry`: set `authorized` based on fingerprint + action match
+8. [ ] Filter unauthorized entries from `get_action()` / `find_action()` results
+
+**Verification**:
+```bash
+# Actions list should match what Perl's lssoa shows (same filtering):
+docker run --rm --network gtnet -v ~/GT/backplane:/backplane:ro \
+  -e SCAMP_CONFIG=/backplane/etc/soa.conf \
+  scamp-rs-test list actions --name health_check
+
+# Compare output with:
+docker exec main perl /service/main/gt-soa/perl/script/lssoa | grep health_check
+```
+
+**Files**: new `src/auth/authorized_services.rs`, `src/discovery/service_registry.rs`, `src/config.rs`
+
+---
+
+## Milestone 4: Multicast Announcing (Rust Service Discoverable)
+
+**Goal**: Rust service sends real UDP multicast announcements that the
+cache service picks up. `lssoa` shows the Rust service.
+
+**Dependency chain**:
+1. [ ] Read config: `discovery.multicast_address` (default `239.63.248.106`), `discovery.port` (default `5555`), `bus.address` / `discovery.address`
+2. [ ] Create UDP socket, join multicast group, set multicast interface
+3. [ ] Zlib compress announcement packet before sending (Perl `Announcer.pm:203`, `compress($pkt, 9)`)
+4. [ ] Send on interval (default 5s)
+5. [ ] Fix announcement format: v4 extension hash in envelopes array, RLE encoding for action vectors
+6. [ ] Fix base64 line-wrapping (76-char lines to match Perl `encode_base64`)
+7. [ ] Fix flags: filter to announceable set (`read, update, destroy, create, noauth, secret`)
+8. [ ] Shutdown: weight=0, send 10 rounds at 1s interval, then stop
+
+**Verification**:
+```bash
+# Start Rust service with multicast:
+docker run -d --name scamp-rs-service --network gtnet \
+  -v ~/GT/backplane:/backplane:ro \
+  -e SCAMP_CONFIG=/backplane/etc/soa.conf \
+  scamp-rs-test serve --key /backplane/devkeys/dev.key --cert /backplane/devkeys/dev.crt
+
+# Wait ~10s for cache service to pick up the announcement, then:
+docker exec main perl /service/main/gt-soa/perl/script/lssoa | grep scamp-rs
+
+# Must show Rust service with correct identity, address, sector, fingerprint
+```
+
+**Files**: `src/service.rs` (announcer module), `Cargo.toml` (add `flate2`), `src/config.rs`
+
+---
+
+## Milestone 5: Full Bidirectional Interop via Discovery
+
+**Goal**: Perl `Requester->simple_request` discovers and successfully calls
+the Rust service through the normal discovery pipeline. No hacks.
+
+**Dependency chain** (builds on M4):
+1. [ ] Diagnose Requester timeout: add TLS handshake diagnostics, test with `GTSOA::Logger` debug logging from inside `main` container
+2. [ ] Fix root cause (likely TLS cert presentation or AnyEvent compatibility — see DEFICIENCIES.md investigation notes)
+3. [ ] Verify: Rust service announced via multicast → cache service picks up → Perl Requester discovers → sends request → Rust handles → Perl receives response
+
+**Verification**:
+```bash
+# The definitive bidirectional interop test:
+docker exec main perl -e '
+  use GTSOA::Requester;
+  use JSON;
+  my @r = GTSOA::Requester->simple_request(
+    action => "ScampRsTest.echo", version => 1,
+    envelope => "json", data => {test => "full interop"},
+  );
+  die "FAILED: " . encode_json($r[1]) unless $r[0];
+  print "SUCCESS: " . encode_json($r[1]) . "\n";
+'
+```
+
+**Files**: `src/service.rs`, `src/transport/beepish/client.rs`
+
+---
+
+## Milestone 6: Wire Protocol Hardening
+
+**Goal**: All wire protocol behaviors match Perl exactly. Audit agents
+re-dispatched to verify.
+
+Items (mostly independent, can be done in any order):
+- [ ] **W-1** Require `\r\n` in header line parsing (not bare `\n`)
+- [ ] **W-3** Always serialize `action`, `ticket`, `identifying_token` (remove `skip_serializing_if`)
+- [ ] **W-4** Send-side flow control: validate ACKs, pause/resume at 65536 bytes
+- [ ] **W-7** Reader task sets `closed` flag on exit
+- [ ] **W-8** Unknown packet types → Fatal (not Drop)
+- [ ] **W-9** Malformed HEADER JSON → Fatal (not Drop)
+- [ ] **W-10** Validate TXERR body non-empty
+- [ ] **W-11** Connection idle timeout with `_adj_timeout` logic
+- [ ] **W-12** Busy flag: track pending requests, adjust timeout
+- [ ] **S-14** CRUD alias: `"destroy"` not `"delete"`
+- [ ] **S-15** Filter v4 accompat != 1
+
+**Verification**:
+```bash
+cargo test  # all unit tests pass
+# Then: re-dispatch audit agents against Perl, JS, Go to verify parity
+```
+
+---
+
+## Milestone 7: Config & Behavioral Parity
+
+**Goal**: scamp-rs reads all config keys, handles timeouts correctly,
+provides a high-level Requester API.
+
+- [ ] **C-1** Read all config keys from soa.conf (see DEFICIENCIES.md C-1 for full list)
+- [ ] **C-6** bus_info(): resolve `bus.address` → IP, support `if:ethN`, auto-detect 10.x/192.168.x
+- [ ] **C-9** Check `GTSOA` env var (Perl canonical) in addition to `SCAMP_CONFIG`
+- [ ] **C-11** Three distinct timeouts: `beepish.server_timeout` (120s), `beepish.client_timeout` (90s), `rpc.timeout` (75s)
+- [ ] **C-12** Per-action timeout from `t600` flags (value + 5s padding)
+- [ ] **C-14** High-level Requester API: cache fill → lookup → connect → request → JSON → errors
+- [ ] **C-15** Config: first-wins for duplicate keys
+- [ ] **C-16** Config: strip inline `# comments`
+- [ ] **S-23** Bind to `service.address` interface, not `0.0.0.0`
+
+**Verification**:
+```bash
+cargo test
+# Re-dispatch audit agents for final parity check
+```
+
+---
+
+## Milestone 8: Production Hardening
+
+- [ ] Typed error enum (`ScampError`)
+- [ ] Connection reconnection with backoff
+- [ ] Graceful shutdown: weight=0 announce → drain → close (SIGTERM/SIGINT)
+- [ ] Running service file (liveness indicator)
+- [ ] Cache file watching (live refresh via `notify` crate)
+- [ ] Ticket verification integration into request dispatch (`noauth` flag bypass)
+- [ ] Multicast receiver (for live discovery updates, not just cache file)
+
+---
+
+## Audit Schedule
+
+After each milestone, re-dispatch verification agents:
+
+| After | Audit scope | Agents |
+|-------|-------------|--------|
+| M1 | TLS/fingerprint correctness | 1 agent per: Perl, JS, Go |
+| M2 | Signature verification | 1 agent: Perl (canonical signer) |
+| M3 | Authorization filtering | 1 agent: Perl (canonical authorized_services) |
+| M4 | Announcement format | 1 agent per: Perl, JS (announcement parsers) |
+| M5 | Full interop | Live test from Perl container |
+| M6 | Wire protocol | 1 agent per: Perl, JS, Go |
+| M7 | Config/behavior | 1 agent: Perl (canonical config consumer) |
