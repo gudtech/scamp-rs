@@ -44,6 +44,19 @@ mod tests {
 }
 ```
 
+## Struct & Impl Organization
+
+**Never split an `impl` block for a struct across files.** If a struct's `impl` is
+getting too large, that's a signal to decompose:
+
+- Extract helper functions (free functions, not methods)
+- Create well-named sub-structs that own part of the behavior
+- Use composition: a large struct with many responsibilities should be split
+  into smaller structs that each own one concern
+
+For example, instead of splitting `ScampService` methods across files, extract
+`AnnouncementBuilder`, `ConnectionHandler`, etc. as separate types.
+
 ## Naming
 
 - Types: `PascalCase`
