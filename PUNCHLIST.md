@@ -9,14 +9,15 @@ Status legend: `[ ]` todo, `[~]` in progress, `[x]` done
 > re-dispatch audit agents (one per reference implementation) to verify parity
 > by direct comparison to the canonical implementations.
 >
-> Comprehensive deficiency audit: see DEFICIENCIES.md (58 items).
+> Deficiency audit: DEFICIENCIES.md (32 remaining items after M1-M3 + audit fixes).
+> Verified by 4 agents: Perl, JS, Go, C#. Last audit: 2026-04-12.
 
 ---
 
 ## Completed Work
 
 - [x] Phase 0: BEEP handshake removed, dead code deleted, deps cleaned
-- [x] PacketHeader serde: `"type"` field, lowercase enums, FlexInt, skip_serializing optional fields
+- [x] PacketHeader serde: `"type"` field, lowercase enums, FlexInt
 - [x] Message assembly (inbound): HEADER→DATA*→EOF/TXERR, msgno from 0
 - [x] Message serialization (outbound): HEADER + DATA chunks (131072) + EOF
 - [x] Request-response correlation: sequential request_id from 1, pending map
@@ -25,8 +26,13 @@ Status legend: `[ ]` todo, `[~]` in progress, `[x]` done
 - [x] Connection architecture: mpsc writer, reader task, ConnectionHandle
 - [x] TLS server listener, action registration, request dispatch
 - [x] Announcement packet generation (v3 JSON, RSA PKCS1v15 SHA256 signing)
-- [x] Action index key: `sector:action.vVERSION` with CRUD aliases
+- [x] Action index key: `sector:action.vVERSION` with CRUD aliases (`_destroy` not `_delete`)
 - [x] Docker build pipeline for x86_64 interop testing
+- [x] **M1**: TLS fingerprint verification + natural corking (crypto.rs)
+- [x] **M2**: Announcement signature verification against live Perl cache (PKCS1v15 SHA256)
+- [x] **M3**: authorized_services parsing, regex matching, registry filtering
+- [x] V4 accompat filter enabled (was commented out)
+- [x] Interop verified: Rust client → Perl mainapi with fingerprint check
 
 ---
 
