@@ -20,10 +20,6 @@ pub struct ServeCommand {
     #[arg(long)]
     cert: Option<String>,
 
-    /// Write announcement to discovery cache file for testing
-    #[arg(long)]
-    announce_to_cache: bool,
-
     /// IP address to announce (overrides auto-detected bind address)
     #[arg(long)]
     announce_ip: Option<String>,
@@ -96,24 +92,10 @@ impl ServeCommand {
         println!("  * Listening on: {}", service.uri().unwrap_or_default());
         println!("  * Registered actions: ScampRsTest.echo~1, ScampRsTest.health_check~1");
 
-        if self.announce_to_cache {
-            let announcement = service.build_announcement_packet()?;
-            let cache_path: String = config
-                .get("discovery.cache_path")
-                .ok_or_else(|| anyhow::anyhow!("No discovery.cache_path in config"))?
-                .map_err(|e| anyhow::anyhow!("{}", e))?;
-
-            // Append to cache file with %%% delimiter
-            use std::io::Write;
-            let mut file = std::fs::OpenOptions::new()
-                .append(true)
-                .open(&cache_path)?;
-            write!(file, "\n%%%\n{}", announcement)?;
-
-            println!("  * Announcement written to cache: {}", cache_path);
-            println!("  * Perl services will discover this service on next lookup");
-        }
-
+        // TODO: implement UDP multicast announcement sending (P4-1)
+        // Services announce via multicast; the cache service receives and writes to cache file.
+        // Direct cache file writing is wrong — that's exclusively the cache service's job.
+        println!("  * WARNING: Multicast announcing not yet implemented. Service will not be discoverable.");
         println!("  * Press Ctrl+C to stop");
 
         service.run().await
