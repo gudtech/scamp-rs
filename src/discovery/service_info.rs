@@ -326,9 +326,14 @@ fn parse_v4_actions(
     // let vmins = unrle::<u32>(obj, "acver", false, len)?;
     let flagss = unrle::<String>(obj, "acflag", false, len)?;
 
-    for (namespace, name, _compat, ver, flags, envelopes, sector) in
+    for (namespace, name, compat, ver, flags, envelopes, sector) in
         izip!(namespaces, names, compats, acvers, flagss, envelopess, sectors)
     {
+        // Skip incompatible actions (Perl ServiceInfo.pm:220, JS service.js:109)
+        if compat != 1 {
+            continue;
+        }
+
         let path = format!("{}.{}", namespace, name)
             .to_lowercase()
             .replace('/', ".");
@@ -352,29 +357,6 @@ fn parse_v4_actions(
         };
 
         actions.push(action);
-
-        //     if compatver
-        //         .as_u64()
-        //         .ok_or(ServiceInfoParseError::MissingField("compatver"))?
-        //         != 1
-        //     {
-        //         continue;
-        //     }
-
-        //     let key = format!(
-        //         "{}:{}.{}.v{}",
-        //         info.sector, actns_str, action_str, actver_num
-        //     );
-        //     map.insert(key, info.clone());
-
-        //     for tag in &info.flags {
-        //         if let Flag::CrudOp(op) = tag {
-        //             let alias_key =
-        //                 format!("{}:{}._{:?}.v{}", info.sector, actns_str, op, actver_num);
-        //             map.insert(alias_key, info.clone());
-        //         }
-        //     }
-        // }
     }
 
     Ok(())
@@ -449,7 +431,7 @@ impl CrudOp {
             "create" => Some(CrudOp::Create),
             "read" => Some(CrudOp::Read),
             "update" => Some(CrudOp::Update),
-            "delete" => Some(CrudOp::Delete),
+            "destroy" => Some(CrudOp::Delete),
             _ => None,
         }
     }

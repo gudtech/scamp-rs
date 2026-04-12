@@ -107,7 +107,7 @@ impl ServiceRegistry {
                             CrudOp::Create => "create",
                             CrudOp::Read => "read",
                             CrudOp::Update => "update",
-                            CrudOp::Delete => "delete",
+                            CrudOp::Delete => "destroy",
                         };
                         let alias_key =
                             make_crud_alias_key(&action.sector, namespace, tag, action.version);
