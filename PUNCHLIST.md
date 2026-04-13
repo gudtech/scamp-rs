@@ -179,23 +179,24 @@ docker exec main perl -e '
 
 ---
 
-## Milestone 6: Wire Protocol Hardening
+## Milestone 6: Wire Protocol Hardening + Test Infrastructure
 
-**Goal**: All wire protocol behaviors match Perl exactly. Audit agents
-re-dispatched to verify.
+**Goal**: Wire protocol matches Perl exactly, backed by Perl-captured test vectors.
 
-Items (mostly independent, can be done in any order):
-- [ ] **W-1** Require `\r\n` in header line parsing (not bare `\n`)
-- [ ] **W-3** Always serialize `action`, `ticket`, `identifying_token` (remove `skip_serializing_if`)
-- [ ] **W-4** Send-side flow control: validate ACKs, pause/resume at 65536 bytes
-- [ ] **W-7** Reader task sets `closed` flag on exit
-- [ ] **W-8** Unknown packet types → Fatal (not Drop)
-- [ ] **W-9** Malformed HEADER JSON → Fatal (not Drop)
-- [ ] **W-10** Validate TXERR body non-empty
-- [ ] **W-11** Connection idle timeout with `_adj_timeout` logic
+Items:
+- [ ] **T-1** Capture wire packets from Perl (HEADER+DATA+EOF+ACK) as test fixtures
+- [ ] **T-2** Server hot path tests (handle_connection, route_packet, dispatch_and_reply)
+- [ ] **T-3** Shared test helpers: packet builders, default headers, sample keypair loader
+- [ ] **W-1** Require `\r\n` in header line parsing (not bare `\n`) — D16
+- [ ] **W-4** Send-side flow control: validate ACKs, pause/resume at 65536 bytes — D5
+- [ ] **W-7** Reader task sets `closed` flag on exit — D12
+- [ ] **W-10** Validate TXERR body non-empty — D27
+- [ ] **W-11** Connection idle timeout with `_adj_timeout` logic — D6
 - [ ] **W-12** Busy flag: track pending requests, adjust timeout
-- [ ] **S-14** CRUD alias: `"destroy"` not `"delete"`
-- [ ] **S-15** Filter v4 accompat != 1
+- [x] ~~W-8 Unknown packet types → Fatal~~ (done)
+- [x] ~~W-9 Malformed HEADER JSON → Fatal~~ (done)
+- [x] ~~S-14 CRUD alias: `"destroy"` not `"delete"`~~ (done)
+- [x] ~~S-15 Filter v4 accompat != 1~~ (done)
 
 **Verification**:
 ```bash
@@ -207,18 +208,15 @@ cargo test  # all unit tests pass
 
 ## Milestone 7: Config & Behavioral Parity
 
-**Goal**: scamp-rs reads all config keys, handles timeouts correctly,
-provides a high-level Requester API.
+**Goal**: Config parsing matches Perl exactly, timeouts are correct.
 
-- [ ] **C-1** Read all config keys from soa.conf (see DEFICIENCIES.md C-1 for full list)
-- [ ] **C-6** bus_info(): resolve `bus.address` → IP, support `if:ethN`, auto-detect 10.x/192.168.x
-- [ ] **C-9** Check `GTSOA` env var (Perl canonical) in addition to `SCAMP_CONFIG`
-- [ ] **C-11** Three distinct timeouts: `beepish.server_timeout` (120s), `beepish.client_timeout` (90s), `rpc.timeout` (75s)
-- [ ] **C-12** Per-action timeout from `t600` flags (value + 5s padding)
-- [ ] **C-14** High-level Requester API: cache fill → lookup → connect → request → JSON → errors
-- [ ] **C-15** Config: first-wins for duplicate keys
-- [ ] **C-16** Config: strip inline `# comments`
-- [ ] **S-23** Bind to `service.address` interface, not `0.0.0.0`
+- [ ] **C-15** Config: first-wins for duplicate keys — D19
+- [ ] **C-16** Config: strip inline `# comments` — D21
+- [ ] **C-9** Check `GTSOA` env var (Perl canonical) in addition to `SCAMP_CONFIG` — D20
+- [ ] **C-11** Three distinct timeouts: server=120s, client=90s, rpc=75s — D17
+- [ ] **C-12** Per-action timeout from `t600` flags (value + 5s padding) — D18
+- [ ] **C-6** bus_info(): resolve `bus.address` → IP, `if:ethN`, auto-detect — D22
+- [ ] **S-23** Bind to `service.address` interface, not `0.0.0.0` — D23
 
 **Verification**:
 ```bash
@@ -228,15 +226,24 @@ cargo test
 
 ---
 
-## Milestone 8: Production Hardening
+## Milestone 8: Discovery Hardening
 
+- [ ] Cache staleness check (`discovery.cache_max_age`, default 120s) — D7
+- [ ] Announcement TTL/expiry (`now + sendInterval * 2.1`) — D8
+- [ ] Timestamp replay protection (reject older per identity) — D9
+- [ ] Service deduplication (fingerprint+identity key) — D26
+- [ ] Cache file watching (live refresh via `notify` crate) — D25
+- [ ] Multicast receiver/observer — D24
+
+## Milestone 9: Production Hardening
+
+- [ ] Graceful shutdown: drain active requests before close — D10
+- [ ] Ticket verification (parse, sig verify, expiry, privileges) — D11
+- [ ] High-level Requester API (lookup+connect+request+JSON) — D28
+- [ ] Service failure tracking / backoff — D32
+- [ ] dispatch_failure / retry — D31
 - [ ] Typed error enum (`ScampError`)
 - [ ] Connection reconnection with backoff
-- [ ] Graceful shutdown: weight=0 announce → drain → close (SIGTERM/SIGINT)
-- [ ] Running service file (liveness indicator)
-- [ ] Cache file watching (live refresh via `notify` crate)
-- [ ] Ticket verification integration into request dispatch (`noauth` flag bypass)
-- [ ] Multicast receiver (for live discovery updates, not just cache file)
 
 ---
 
