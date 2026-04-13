@@ -81,6 +81,23 @@ impl ServiceRegistry {
             anyhow::anyhow!("Failed to open discovery cache file {}, {}", cache_path, e)
         })?;
 
+        // D7: Cache staleness check — Perl ServiceManager.pm:83-88
+        let cache_max_age: u64 = config
+            .get::<u64>("discovery.cache_max_age")
+            .and_then(|r| r.ok())
+            .unwrap_or(120);
+        if let Ok(metadata) = file.metadata() {
+            if let Ok(modified) = metadata.modified() {
+                let age = modified.elapsed().unwrap_or_default();
+                if age.as_secs() > cache_max_age {
+                    log::warn!(
+                        "Discovery cache is stale ({:.0}s old, max {}s): {}",
+                        age.as_secs(), cache_max_age, cache_path
+                    );
+                }
+            }
+        }
+
         let iterator = CacheFileAnnouncementIterator::new(&mut file);
         for announcement_packet in iterator {
             let packet = announcement_packet?;
