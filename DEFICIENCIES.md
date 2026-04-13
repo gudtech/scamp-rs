@@ -95,14 +95,15 @@ Confirmed matching across all implementations:
 | D23 | Server binds to 0.0.0.0 | Fixed: bind_pem takes bind_ip from BusInfo |
 | D28 | No high-level Requester API | Fixed: Requester::request() combines lookup+connect+send |
 | D29 | Flags not filtered to announceable set | Fixed: filter to ANNOUNCEABLE set in announcement building |
+| D11 | No ticket verification | Fixed: auth::ticket with RSA verify, expiry, privileges |
+| D31 | No dispatch_failure / retry | Fixed: Requester retries once on dispatch_failure |
+| D32 | No service failure tracking | Fixed: mark_failed() with exponential backoff, prefer healthy |
+| Q5 | list.rs exceeds 300-line limit | Fixed: compacted from 314 to 212 lines |
+| T4 | make_auth() duplicates production logic | Fixed: extracted parse_content(), shared by reload and tests |
+| T6 | test_fingerprint_of_dev_cert silently passes | Fixed: now #[ignore] with panic on missing cert |
+| T10 | No RLE decode edge cases | Fixed: 6 tests for unrle edge cases |
 
 ## Remaining Deficiencies
-
-### Code Quality
-
-| ID | Severity | Description | File:Line |
-|----|----------|-------------|-----------|
-| **Q5** | Low | `list.rs` (314) exceeds 300-line limit | coding standards |
 
 ### Remaining Discovery
 
@@ -111,24 +112,8 @@ Confirmed matching across all implementations:
 | **D24** | No multicast receiver/observer | Observer.pm |
 | **D25** | No cache refresh/reload mechanism (registry is static) | ServiceManager.pm:68-72 |
 
-### Remaining Service Lifecycle
-
-| ID | Description | Ref |
-|----|-------------|-----|
-| **D11** | No ticket verification (parse, sig verify, expiry, privileges) | ticket.go, ticket.js |
-
-### Remaining Config / API
-
-| ID | Description | Ref |
-|----|-------------|-----|
-| **D31** | No `dispatch_failure` / retry on failed dispatch | requester.js:50-58 |
-| **D32** | No service failure tracking / backoff | serviceMgr.js:43-52 |
-
 ### Remaining Test Coverage
 
 | ID | Description | Impact |
 |----|-------------|--------|
-| **T4** | `make_auth()` duplicates production logic | Medium |
-| **T6** | `test_fingerprint_of_dev_cert` silently passes when cert missing | Low |
-| **T8** | No shared test helpers for common patterns | Medium |
-| **T10** | No tests for RLE decode edge cases | Medium |
+| **T8** | No shared test helpers for common patterns | Low |
