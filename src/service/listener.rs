@@ -97,7 +97,14 @@ impl ScampService {
         );
     }
 
-    pub async fn bind_pem(&mut self, key_pem: &[u8], cert_pem: &[u8]) -> Result<()> {
+    /// Bind with TLS using specified bind address.
+    /// Perl Server.pm:27-34: random port in 30100-30399, bind to service address.
+    pub async fn bind_pem(
+        &mut self,
+        key_pem: &[u8],
+        cert_pem: &[u8],
+        bind_ip: std::net::Ipv4Addr,
+    ) -> Result<()> {
         self.key_pem = Some(key_pem.to_vec());
         self.cert_pem = Some(cert_pem.to_vec());
 
@@ -112,7 +119,7 @@ impl ScampService {
         let mut listener = None;
         for _ in 0..bind_tries {
             let port = first_port + (rand::random::<u16>() % (last_port - first_port + 1));
-            let addr: SocketAddr = format!("0.0.0.0:{}", port).parse()?;
+            let addr = SocketAddr::from((bind_ip, port));
             match TcpListener::bind(addr).await {
                 Ok(l) => {
                     listener = Some(l);

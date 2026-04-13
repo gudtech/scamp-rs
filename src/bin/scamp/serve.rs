@@ -1,4 +1,5 @@
 use anyhow::Result;
+use scamp::bus_info::BusInfo;
 use scamp::config::Config;
 use scamp::service::{MulticastConfig, ScampReply, ScampService};
 
@@ -67,11 +68,17 @@ impl ServeCommand {
         let key_pem = std::fs::read(&key_path)?;
         let cert_pem = std::fs::read(&cert_path)?;
 
-        service.bind_pem(&key_pem, &cert_pem).await?;
+        // Resolve service address from config — Perl Config.pm:59-112
+        let bus_info = BusInfo::from_config(config);
+        let bind_ip = bus_info.service_addr();
 
-        // Determine announce IP
+        service.bind_pem(&key_pem, &cert_pem, bind_ip).await?;
+
+        // Determine announce IP: CLI override > bus_info > hostname detection
         let announce_ip = if let Some(ip) = &self.announce_ip {
             ip.clone()
+        } else if !bind_ip.is_unspecified() {
+            bind_ip.to_string()
         } else {
             detect_announce_ip().await.unwrap_or_else(|| "127.0.0.1".into())
         };
@@ -81,11 +88,8 @@ impl ServeCommand {
         println!("  * Listening on: {}", service.uri().unwrap_or_default());
         println!("  * Registered actions: ScampRsTest.echo~1, ScampRsTest.health_check~1");
 
-        // Set up multicast announcing
-        let mcast_interface: std::net::Ipv4Addr = announce_ip.parse().unwrap_or_else(|_| {
-            log::warn!("Cannot parse announce IP '{}' for multicast; using 0.0.0.0", announce_ip);
-            std::net::Ipv4Addr::UNSPECIFIED
-        });
+        // Set up multicast announcing using resolved interface
+        let mcast_interface: std::net::Ipv4Addr = announce_ip.parse().unwrap_or(bind_ip);
         let mcast_config = MulticastConfig::from_config(config, mcast_interface);
 
         println!(
