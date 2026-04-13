@@ -134,11 +134,17 @@ async fn route_packet(
             }
         }
         PacketType::Txerr => {
+            // JS connection.js:229 — empty/"0" TXERR body is invalid
+            let body_str = String::from_utf8_lossy(&packet.body);
+            if body_str.is_empty() || body_str == "0" {
+                log::error!("TXERR with empty/zero body for msgno {}", packet.msg_no);
+                return;
+            }
             let Some(msg) = incoming.remove(&packet.msg_no) else {
                 log::error!("TXERR with no active message for msgno {}", packet.msg_no);
                 return;
             };
-            let error_text = String::from_utf8_lossy(&packet.body).to_string();
+            let error_text = body_str.to_string();
             let request_id = msg.header.request_id.0;
             let mut pend = pending.lock().await;
             if let Some(tx) = pend.remove(&request_id) {

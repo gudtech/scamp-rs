@@ -285,7 +285,15 @@ async fn route_packet(
                 dispatch_and_reply(msg, next_outgoing_msg_no, writer, actions).await;
             }
         }
-        PacketType::Txerr => { incoming.remove(&packet.msg_no); }
+        PacketType::Txerr => {
+            // JS connection.js:229 — empty/"0" TXERR body is invalid
+            let body_str = String::from_utf8_lossy(&packet.body);
+            if body_str.is_empty() || body_str == "0" {
+                log::error!("TXERR with empty/zero body for msgno {}", packet.msg_no);
+                return;
+            }
+            incoming.remove(&packet.msg_no);
+        }
         PacketType::Ack => {}
         PacketType::Ping => {
             let pong = Packet { packet_type: PacketType::Pong, msg_no: packet.msg_no, packet_header: None, body: vec![] };
