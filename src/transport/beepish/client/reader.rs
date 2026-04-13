@@ -7,7 +7,7 @@ use log;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
-use tokio::sync::{mpsc, oneshot, Mutex};
+use tokio::sync::{mpsc, oneshot, Mutex, Notify};
 
 use super::ScampResponse;
 use crate::transport::beepish::proto::{Packet, PacketHeader, PacketType, ParseResult};
@@ -36,6 +36,7 @@ pub(super) async fn reader_task(
     pending: Arc<Mutex<HashMap<i64, oneshot::Sender<ScampResponse>>>>,
     writer_tx: mpsc::Sender<Packet>,
     outgoing: OutgoingMap,
+    ack_notify: Arc<Notify>,
 ) {
     let mut reader = BufReader::new(reader);
     let mut incoming: HashMap<u64, IncomingMessage> = HashMap::new();
@@ -60,7 +61,7 @@ pub(super) async fn reader_task(
                     consumed += bytes_used;
                     route_packet(
                         packet, &mut incoming, &mut next_incoming_msg_no,
-                        &pending, &writer_tx, &outgoing,
+                        &pending, &writer_tx, &outgoing, &ack_notify,
                     ).await;
                 }
                 ParseResult::Fatal(err) => {
@@ -99,6 +100,7 @@ async fn route_packet(
     pending: &Arc<Mutex<HashMap<i64, oneshot::Sender<ScampResponse>>>>,
     writer_tx: &mpsc::Sender<Packet>,
     outgoing: &OutgoingMap,
+    ack_notify: &Arc<Notify>,
 ) {
     match packet.packet_type {
         PacketType::Header => {
@@ -183,8 +185,9 @@ async fn route_packet(
                     return;
                 }
                 state.acknowledged = ack_val;
+                // D5b: Wake sender if it's blocked on flow control watermark
+                ack_notify.notify_one();
             }
-            // Note: full pause/resume at watermark (65536) not yet implemented
         }
         PacketType::Ping => {
             let pong = Packet { packet_type: PacketType::Pong, msg_no: packet.msg_no, packet_header: None, body: vec![] };

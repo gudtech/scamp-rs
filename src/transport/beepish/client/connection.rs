@@ -8,7 +8,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 use tokio::net::TcpStream;
-use tokio::sync::{mpsc, oneshot, Mutex};
+use tokio::sync::{mpsc, oneshot, Mutex, Notify};
 use tokio::time::timeout;
 use tokio_native_tls::{native_tls, TlsConnector};
 
@@ -29,6 +29,9 @@ pub const DEFAULT_CLIENT_TIMEOUT_SECS: u64 = 90;
 #[allow(dead_code)]
 pub const DEFAULT_SERVER_TIMEOUT_SECS: u64 = 120;
 
+/// Send-side flow control watermark — JS connection.js:4
+const FLOW_CONTROL_WATERMARK: u64 = 65536;
+
 /// A SCAMP response received from a service.
 #[derive(Debug)]
 pub struct ScampResponse {
@@ -48,6 +51,7 @@ pub struct ConnectionHandle {
     writer_tx: mpsc::Sender<Packet>,
     pending: Arc<Mutex<HashMap<i64, oneshot::Sender<ScampResponse>>>>,
     outgoing: reader::OutgoingMap,
+    ack_notify: Arc<Notify>,
     next_request_id: AtomicI64,
     next_outgoing_msg_no: AtomicU64,
     closed: Arc<AtomicBool>,
@@ -101,20 +105,25 @@ impl ConnectionHandle {
             Arc::new(Mutex::new(HashMap::new()));
         let closed = Arc::new(AtomicBool::new(false));
         let outgoing: reader::OutgoingMap = Arc::new(Mutex::new(HashMap::new()));
+        let ack_notify = Arc::new(Notify::new());
 
         let writer_handle = tokio::spawn(writer_task(write_half, writer_rx));
         let reader_pending = pending.clone();
         let reader_writer_tx = writer_tx.clone();
         let reader_closed = closed.clone();
         let reader_outgoing = outgoing.clone();
+        let reader_ack_notify = ack_notify.clone();
         let reader_handle = tokio::spawn(async move {
-            reader::reader_task(read_half, reader_pending, reader_writer_tx, reader_outgoing).await;
+            reader::reader_task(
+                read_half, reader_pending, reader_writer_tx,
+                reader_outgoing, reader_ack_notify,
+            ).await;
             // D12: set closed flag when reader exits
             reader_closed.store(true, Ordering::Relaxed);
         });
 
         ConnectionHandle {
-            writer_tx, pending, outgoing,
+            writer_tx, pending, outgoing, ack_notify,
             next_request_id: AtomicI64::new(1),    // Perl Client.pm:33
             next_outgoing_msg_no: AtomicU64::new(0), // All impls start at 0
             closed,
@@ -190,6 +199,24 @@ impl ConnectionHandle {
         // DATA chunks — track bytes sent for ACK validation
         let mut offset = 0;
         while offset < body.len() {
+            // D5b: Flow control — wait if unacked bytes >= watermark
+            // JS connection.js:298: pause when sent-acked >= 65536
+            loop {
+                if self.closed.load(Ordering::Relaxed) {
+                    self.pending.lock().await.remove(&request_id);
+                    self.outgoing.lock().await.remove(&msg_no);
+                    return Err(anyhow!("Connection closed during flow control wait"));
+                }
+                let over_watermark = {
+                    let out = self.outgoing.lock().await;
+                    out.get(&msg_no).map_or(false, |s| {
+                        s.sent.saturating_sub(s.acknowledged) >= FLOW_CONTROL_WATERMARK
+                    })
+                };
+                if !over_watermark { break; }
+                self.ack_notify.notified().await;
+            }
+
             let end = (offset + DATA_CHUNK_SIZE).min(body.len());
             let chunk_len = (end - offset) as u64;
             if self.writer_tx.send(Packet { packet_type: PacketType::Data, msg_no, packet_header: None, body: body[offset..end].to_vec() }).await.is_err() {
