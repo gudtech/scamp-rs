@@ -32,10 +32,7 @@ impl<R: Read> Iterator for CacheFileAnnouncementIterator<R> {
             let (consume, matched) = match self.reader.fill_buf() {
                 Ok(buffer) if buffer.is_empty() => return None, // EOF
                 Ok(buffer) => {
-                    if let Some(pos) = buffer
-                        .windows(delimiter_bytes.len())
-                        .position(|window| window == delimiter_bytes)
-                    {
+                    if let Some(pos) = buffer.windows(delimiter_bytes.len()).position(|window| window == delimiter_bytes) {
                         announcement_data.extend_from_slice(&buffer[..pos]);
                         (pos + delimiter_bytes.len(), true)
                     } else {
@@ -70,15 +67,9 @@ mod tests {
         let cache_file = File::open("samples/discovery_cache_file").unwrap();
         let iterator = CacheFileAnnouncementIterator::new(cache_file);
         let announcements: Vec<_> = iterator.collect();
-        assert!(
-            !announcements.is_empty(),
-            "Should parse at least one announcement"
-        );
+        assert!(!announcements.is_empty(), "Should parse at least one announcement");
         // At least one should parse successfully
         let ok_count = announcements.iter().filter(|a| a.is_ok()).count();
-        assert!(
-            ok_count > 0,
-            "At least one announcement should parse successfully"
-        );
+        assert!(ok_count > 0, "At least one announcement should parse successfully");
     }
 }

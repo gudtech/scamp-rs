@@ -23,8 +23,7 @@ pub fn cert_sha1_fingerprint(cert_der: &[u8]) -> String {
 pub fn pem_to_der(pem: &str) -> Result<Vec<u8>> {
     let lines: Vec<&str> = pem.lines().filter(|l| !l.starts_with("-----")).collect();
     let b64 = lines.join("");
-    base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &b64)
-        .map_err(|e| anyhow!("base64 decode failed: {}", e))
+    base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &b64).map_err(|e| anyhow!("base64 decode failed: {}", e))
 }
 
 /// Compute SHA1 fingerprint from a PEM-encoded certificate string.
@@ -46,30 +45,16 @@ pub fn verify_rsa_sha256(cert_pem: &str, message: &[u8], signature_base64: &str)
 
     // Parse the certificate to extract the public key
     let cert_pem_trimmed = cert_pem.trim();
-    let x509 = X509::from_pem(cert_pem_trimmed.as_bytes())
-        .map_err(|e| anyhow!("Failed to parse certificate PEM: {}", e))?;
-    let pubkey = x509
-        .public_key()
-        .map_err(|e| anyhow!("Failed to extract public key: {}", e))?;
+    let x509 = X509::from_pem(cert_pem_trimmed.as_bytes()).map_err(|e| anyhow!("Failed to parse certificate PEM: {}", e))?;
+    let pubkey = x509.public_key().map_err(|e| anyhow!("Failed to extract public key: {}", e))?;
 
     // Decode the base64 signature (handle both line-wrapped and single-line)
-    let sig_clean: String = signature_base64
-        .trim()
-        .chars()
-        .filter(|c| !c.is_whitespace())
-        .collect();
+    let sig_clean: String = signature_base64.trim().chars().filter(|c| !c.is_whitespace()).collect();
     let signature = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &sig_clean)
-        .map_err(|e| {
-            anyhow!(
-                "Failed to decode signature base64 ({} chars): {}",
-                sig_clean.len(),
-                e
-            )
-        })?;
+        .map_err(|e| anyhow!("Failed to decode signature base64 ({} chars): {}", sig_clean.len(), e))?;
 
     // Verify with PKCS1v15 SHA256
-    let mut verifier = Verifier::new(MessageDigest::sha256(), &pubkey)
-        .map_err(|e| anyhow!("Failed to create verifier: {}", e))?;
+    let mut verifier = Verifier::new(MessageDigest::sha256(), &pubkey).map_err(|e| anyhow!("Failed to create verifier: {}", e))?;
     verifier
         .set_rsa_padding(openssl::rsa::Padding::PKCS1)
         .map_err(|e| anyhow!("Failed to set padding: {}", e))?;
@@ -105,10 +90,7 @@ mod tests {
         assert_eq!(fp.len(), 59); // 20 bytes * 3 - 1 (colons between pairs)
         assert!(fp.chars().all(|c| c.is_ascii_hexdigit() || c == ':'));
         // All hex should be uppercase
-        assert!(fp
-            .chars()
-            .filter(|c| c.is_ascii_alphabetic())
-            .all(|c| c.is_ascii_uppercase()));
+        assert!(fp.chars().filter(|c| c.is_ascii_alphabetic()).all(|c| c.is_ascii_uppercase()));
     }
 
     #[test]
@@ -123,12 +105,8 @@ mod tests {
     #[test]
     #[ignore]
     fn test_fingerprint_of_dev_cert() {
-        let cert_path = format!(
-            "{}/GT/backplane/devkeys/dev.crt",
-            std::env::var("HOME").unwrap_or_default()
-        );
-        let cert_pem = std::fs::read_to_string(&cert_path)
-            .unwrap_or_else(|_| panic!("Dev cert not found at {}", cert_path));
+        let cert_path = format!("{}/GT/backplane/devkeys/dev.crt", std::env::var("HOME").unwrap_or_default());
+        let cert_pem = std::fs::read_to_string(&cert_path).unwrap_or_else(|_| panic!("Dev cert not found at {}", cert_path));
         let fp = cert_pem_fingerprint(&cert_pem).unwrap();
         assert_eq!(
             fp, "BC:6E:86:C2:46:44:F7:DC:7F:1D:17:89:D1:9A:E5:09:E4:08:8B:B0",

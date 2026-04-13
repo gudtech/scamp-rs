@@ -25,31 +25,18 @@ impl Ticket {
     pub fn parse(ticket_str: &str) -> Result<(Self, Vec<u8>)> {
         let parts: Vec<&str> = ticket_str.split(',').collect();
         if parts.len() < 6 {
-            return Err(anyhow!(
-                "Ticket has {} fields, expected at least 6",
-                parts.len()
-            ));
+            return Err(anyhow!("Ticket has {} fields, expected at least 6", parts.len()));
         }
 
-        let version: u32 = parts[0]
-            .parse()
-            .map_err(|_| anyhow!("Invalid ticket version: {}", parts[0]))?;
+        let version: u32 = parts[0].parse().map_err(|_| anyhow!("Invalid ticket version: {}", parts[0]))?;
         if version != 1 {
             return Err(anyhow!("Unsupported ticket version: {}", version));
         }
 
-        let user_id: u64 = parts[1]
-            .parse()
-            .map_err(|_| anyhow!("Invalid user_id: {}", parts[1]))?;
-        let client_id: u64 = parts[2]
-            .parse()
-            .map_err(|_| anyhow!("Invalid client_id: {}", parts[2]))?;
-        let validity_start: u64 = parts[3]
-            .parse()
-            .map_err(|_| anyhow!("Invalid validity_start: {}", parts[3]))?;
-        let ttl: u64 = parts[4]
-            .parse()
-            .map_err(|_| anyhow!("Invalid ttl: {}", parts[4]))?;
+        let user_id: u64 = parts[1].parse().map_err(|_| anyhow!("Invalid user_id: {}", parts[1]))?;
+        let client_id: u64 = parts[2].parse().map_err(|_| anyhow!("Invalid client_id: {}", parts[2]))?;
+        let validity_start: u64 = parts[3].parse().map_err(|_| anyhow!("Invalid validity_start: {}", parts[3]))?;
+        let ttl: u64 = parts[4].parse().map_err(|_| anyhow!("Invalid ttl: {}", parts[4]))?;
 
         let privileges: Vec<u64> = if parts[5].is_empty() {
             vec![]
@@ -87,8 +74,7 @@ impl Ticket {
         };
 
         // Verify RSA PKCS1v15 SHA256 signature
-        let rsa = Rsa::public_key_from_pem(public_key_pem)
-            .map_err(|e| anyhow!("Invalid ticket verify public key: {}", e))?;
+        let rsa = Rsa::public_key_from_pem(public_key_pem).map_err(|e| anyhow!("Invalid ticket verify public key: {}", e))?;
         let pkey = PKey::from_rsa(rsa)?;
         let mut verifier = Verifier::new(MessageDigest::sha256(), &pkey)?;
         verifier.update(signed_data.as_bytes())?;
@@ -102,10 +88,7 @@ impl Ticket {
             .unwrap()
             .as_secs();
         if now < ticket.validity_start {
-            return Err(anyhow!(
-                "Ticket not yet valid (starts at {})",
-                ticket.validity_start
-            ));
+            return Err(anyhow!("Ticket not yet valid (starts at {})", ticket.validity_start));
         }
         if now >= ticket.validity_start + ticket.ttl {
             return Err(anyhow!("Ticket expired"));
@@ -167,10 +150,7 @@ mod tests {
     fn test_parse_ticket_bad_version() {
         let result = Ticket::parse("2,42,100,1700000000,3600,,AAAA");
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Unsupported ticket version"));
+        assert!(result.unwrap_err().to_string().contains("Unsupported ticket version"));
     }
 
     #[test]

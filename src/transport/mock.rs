@@ -53,10 +53,7 @@ impl MockClient {
         headers: BTreeMap<String, String>,
         mut body: Box<dyn AsyncRead + Unpin + Send>,
     ) -> Result<MockResponse> {
-        eprintln!(
-            "  * Mock Call to {} at {}",
-            action.action.path, action.service_info.uri
-        );
+        eprintln!("  * Mock Call to {} at {}", action.action.path, action.service_info.uri);
 
         let pathver = format!("{}~{}", action.action.path, action.action.version);
 
@@ -67,11 +64,7 @@ impl MockClient {
 
         let expectation = match index {
             Some(idx) => self.expect.lock().unwrap().remove(idx),
-            None => {
-                return Err(anyhow::anyhow!(
-                    "No expectation found for pathver {pathver}"
-                ))
-            }
+            None => return Err(anyhow::anyhow!("No expectation found for pathver {pathver}")),
         };
 
         if headers != expectation.req_headers {
@@ -96,8 +89,7 @@ impl MockClient {
         let mut headers = BTreeMap::new();
         headers.insert("content-type".to_string(), "application/json".to_string());
 
-        let body = Box::new(tokio::io::BufReader::new(Cursor::new(expectation.res_body)))
-            as Box<dyn AsyncRead + Unpin>;
+        let body = Box::new(tokio::io::BufReader::new(Cursor::new(expectation.res_body))) as Box<dyn AsyncRead + Unpin>;
 
         println!("    * Response headers: {:?}", headers);
         Ok(MockResponse { headers, body })
@@ -113,11 +105,9 @@ mod tests {
     #[tokio::test]
     async fn test_mock_client() {
         let pathver = "foo.bar~1".to_string();
-        let req_headers =
-            BTreeMap::from([("content-type".to_string(), "application/json".to_string())]);
+        let req_headers = BTreeMap::from([("content-type".to_string(), "application/json".to_string())]);
         let req_body: Vec<u8> = r#"{"operation":"turboencabulate"}"#.into();
-        let res_headers =
-            BTreeMap::from([("content-type".to_string(), "application/json".to_string())]);
+        let res_headers = BTreeMap::from([("content-type".to_string(), "application/json".to_string())]);
         let res_body: Vec<u8> = r#"{"status":"great", "reframulation_level": 42}"#.into();
 
         let mut client = MockClient::new();
@@ -156,19 +146,13 @@ mod tests {
         };
 
         let response = client
-            .request(
-                &action,
-                req_headers.clone(),
-                Box::new(std::io::Cursor::new(req_body)),
-            )
+            .request(&action, req_headers.clone(), Box::new(std::io::Cursor::new(req_body)))
             .await
             .unwrap();
 
         let mut body = Vec::new();
         let mut reader = response.body;
-        tokio::io::AsyncReadExt::read_to_end(&mut reader, &mut body)
-            .await
-            .unwrap();
+        tokio::io::AsyncReadExt::read_to_end(&mut reader, &mut body).await.unwrap();
         assert_eq!(body, res_body);
         assert!(client.expectations_met());
     }

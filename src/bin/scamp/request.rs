@@ -43,19 +43,13 @@ impl RequestCommand {
         // Default to "main" sector, matching Perl Requester.pm:15
         let action = registry
             .get_action_by_pathver(&format!("{}~{}", action_name, version), "main")
-            .ok_or(anyhow::anyhow!(
-                "Action not found: {} (tried sector 'main')",
-                action_name
-            ))?;
+            .ok_or(anyhow::anyhow!("Action not found: {} (tried sector 'main')", action_name))?;
 
         let mut _headers: BTreeMap<String, String> = BTreeMap::new();
         for header in &self.header {
             let mut parts = header.splitn(2, ':');
             if let (Some(key), Some(value)) = (parts.next(), parts.next()) {
-                _headers.insert(
-                    key.trim().to_string().to_lowercase(),
-                    value.trim().to_string(),
-                );
+                _headers.insert(key.trim().to_string().to_lowercase(), value.trim().to_string());
             }
         }
 
@@ -79,9 +73,7 @@ impl RequestCommand {
             }
             buf
         } else {
-            return Err(anyhow::anyhow!(
-                "Either --file or --body or pipe must be specified"
-            ));
+            return Err(anyhow::anyhow!("Either --file or --body or pipe must be specified"));
         };
 
         let client = BeepishClient::new(config);
@@ -107,10 +99,7 @@ impl RequestCommand {
             print!("{}", String::from_utf8_lossy(&response.body));
         }
 
-        println!(
-            "\n  * Request complete. Response contained {} bytes",
-            response.body.len()
-        );
+        println!("\n  * Request complete. Response contained {} bytes", response.body.len());
 
         Ok(())
     }

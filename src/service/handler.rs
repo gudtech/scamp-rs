@@ -42,11 +42,8 @@ impl ScampReply {
 }
 
 /// Handler function type for registered actions.
-pub type ActionHandlerFn = Arc<
-    dyn Fn(ScampRequest) -> std::pin::Pin<Box<dyn std::future::Future<Output = ScampReply> + Send>>
-        + Send
-        + Sync,
->;
+pub type ActionHandlerFn =
+    Arc<dyn Fn(ScampRequest) -> std::pin::Pin<Box<dyn std::future::Future<Output = ScampReply> + Send>> + Send + Sync>;
 
 /// A registered action with its handler.
 pub(crate) struct RegisteredAction {

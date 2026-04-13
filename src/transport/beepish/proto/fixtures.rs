@@ -26,8 +26,7 @@ pub fn perl_request_header_with_nulls() -> Vec<u8> {
 
 /// Perl reply HEADER with null error/error_code (success).
 pub fn perl_reply_ok() -> Vec<u8> {
-    let json =
-        br#"{"envelope":"json","request_id":1,"error_code":null,"error":null,"type":"reply"}"#;
+    let json = br#"{"envelope":"json","request_id":1,"error_code":null,"error":null,"type":"reply"}"#;
     build_packet("HEADER", 1, json)
 }
 

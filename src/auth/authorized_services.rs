@@ -120,8 +120,7 @@ impl AuthorizedServices {
                 })
                 .collect();
 
-            self.entries
-                .insert(fingerprint.to_string(), AuthEntry { patterns });
+            self.entries.insert(fingerprint.to_string(), AuthEntry { patterns });
         }
     }
 

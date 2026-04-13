@@ -86,12 +86,7 @@ fn create_multicast_socket(config: &MulticastConfig) -> Result<std::net::UdpSock
 
     socket.set_nonblocking(true)?;
 
-    log::info!(
-        "Multicast socket bound on {} → {}:{}",
-        config.interface,
-        config.group,
-        config.port
-    );
+    log::info!("Multicast socket bound on {} → {}:{}", config.interface, config.group, config.port);
     Ok(socket.into())
 }
 
@@ -102,11 +97,7 @@ fn create_multicast_socket(config: &MulticastConfig) -> Result<std::net::UdpSock
 ///
 /// `build_packet_fn` is called each iteration to get the current (uncompressed) packet.
 /// Perl Announcer.pm:78-94
-pub async fn run_announcer<F>(
-    config: MulticastConfig,
-    mut build_packet: F,
-    mut shutdown_rx: watch::Receiver<bool>,
-) -> Result<()>
+pub async fn run_announcer<F>(config: MulticastConfig, mut build_packet: F, mut shutdown_rx: watch::Receiver<bool>) -> Result<()>
 where
     F: FnMut(bool) -> Result<Vec<u8>> + Send,
 {
@@ -125,9 +116,7 @@ where
             log::debug!("Sent announcement ({} bytes compressed)", compressed.len());
         }
 
-        let sleep = tokio::time::sleep(tokio::time::Duration::from_secs(
-            config.interval_secs as u64,
-        ));
+        let sleep = tokio::time::sleep(tokio::time::Duration::from_secs(config.interval_secs as u64));
         tokio::select! {
             _ = sleep => {},
             _ = shutdown_rx.changed() => {
@@ -139,10 +128,7 @@ where
     }
 
     // Shutdown announcing: weight=0, 10 rounds at 1s — Perl Announcer.pm:82-94,97-101
-    log::info!(
-        "Sending shutdown announcements (weight=0, {} rounds)",
-        SHUTDOWN_ROUNDS
-    );
+    log::info!("Sending shutdown announcements (weight=0, {} rounds)", SHUTDOWN_ROUNDS);
     for round in 1..=SHUTDOWN_ROUNDS {
         let packet = build_packet(false)?;
         let compressed = zlib_compress(&packet)?;

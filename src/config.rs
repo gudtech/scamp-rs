@@ -44,16 +44,12 @@ impl Config {
         let config_contents = std::fs::read_to_string(&config_path.path)?;
         let root = Self::parse_config(&config_contents, config_path.conf_rewrites)?;
 
-        Ok(Self {
-            root: Arc::new(root),
-        })
+        Ok(Self { root: Arc::new(root) })
     }
 
     pub fn get<T: std::str::FromStr>(&self, key: &str) -> Option<Result<T, T::Err>> {
         match self.root.get(key) {
-            Some(ConfElement {
-                value: Some(value), ..
-            }) => Some(value.parse()),
+            Some(ConfElement { value: Some(value), .. }) => Some(value.parse()),
             _ => None,
         }
     }
@@ -64,15 +60,9 @@ impl Config {
         if let Some(path) = override_path {
             let path = PathBuf::from(path);
             if path.exists() {
-                return Ok(ConfigPath {
-                    path,
-                    conf_rewrites: None,
-                });
+                return Ok(ConfigPath { path, conf_rewrites: None });
             } else {
-                return Err(anyhow::anyhow!(
-                    "--config path {} does not exist",
-                    path.to_string_lossy()
-                ));
+                return Err(anyhow::anyhow!("--config path {} does not exist", path.to_string_lossy()));
             }
         }
 
@@ -80,15 +70,9 @@ impl Config {
         if let Ok(config_path) = std::env::var("SCAMP_CONFIG") {
             let path = PathBuf::from(config_path);
             if path.exists() {
-                return Ok(ConfigPath {
-                    path,
-                    conf_rewrites: None,
-                });
+                return Ok(ConfigPath { path, conf_rewrites: None });
             } else {
-                return Err(anyhow::anyhow!(
-                    "SCAMP_CONFIG path {} does not exist",
-                    path.to_string_lossy()
-                ));
+                return Err(anyhow::anyhow!("SCAMP_CONFIG path {} does not exist", path.to_string_lossy()));
             }
         }
 
@@ -96,10 +80,7 @@ impl Config {
         if let Ok(gtsoa_path) = std::env::var("GTSOA") {
             let path = PathBuf::from(&gtsoa_path).join("etc/soa.conf");
             if path.exists() {
-                return Ok(ConfigPath {
-                    path,
-                    conf_rewrites: None,
-                });
+                return Ok(ConfigPath { path, conf_rewrites: None });
             }
         }
 
@@ -109,10 +90,7 @@ impl Config {
             for path in DEFAULT_CONFIG_PATHS {
                 let path = PathBuf::from(path);
                 if path.exists() {
-                    return Ok(ConfigPath {
-                        path,
-                        conf_rewrites: None,
-                    });
+                    return Ok(ConfigPath { path, conf_rewrites: None });
                 } else {
                     failed_paths.push(path.to_string_lossy().to_string());
                 }
@@ -127,19 +105,14 @@ impl Config {
                         conf_rewrites: Some(vec![ConfRewrite {
                             key_match: None,
                             value_match: Some(Regex::new("^/backplane").unwrap()),
-                            value_replacer: Some(
-                                home.join("GT/backplane").to_string_lossy().to_string(),
-                            ),
+                            value_replacer: Some(home.join("GT/backplane").to_string_lossy().to_string()),
                         }]),
                     });
                 }
                 failed_paths.push(path.to_string_lossy().to_string());
             };
 
-            Err(anyhow::anyhow!(
-                "No scamp config file found. tried {}",
-                failed_paths.join(", ")
-            ))
+            Err(anyhow::anyhow!("No scamp config file found. tried {}", failed_paths.join(", ")))
         }
     }
 
@@ -173,10 +146,7 @@ impl Config {
                             }
                             current = &mut current.list[num];
                         } else {
-                            current = current
-                                .children
-                                .entry(segment.to_string())
-                                .or_insert_with(ConfElement::default);
+                            current = current.children.entry(segment.to_string()).or_insert_with(ConfElement::default);
                         }
                     }
                     let mut value = value.to_string();
@@ -187,11 +157,8 @@ impl Config {
                                     continue;
                                 }
                             }
-                            if let (Some(value_match), Some(value_replacer)) =
-                                (&rewrite.value_match, &rewrite.value_replacer)
-                            {
-                                value =
-                                    value_match.replace_all(&value, value_replacer).into_owned();
+                            if let (Some(value_match), Some(value_replacer)) = (&rewrite.value_match, &rewrite.value_replacer) {
+                                value = value_match.replace_all(&value, value_replacer).into_owned();
                             }
                         }
                     }
@@ -271,14 +238,8 @@ mod tests {
     fn test_inline_comments() {
         let config = "foo.bar = hello # this is a comment\nfoo.baz = world\n";
         let root = Config::parse_config(config, None).unwrap();
-        assert_eq!(
-            root.get("foo.bar").unwrap().value.as_ref().unwrap(),
-            "hello"
-        );
-        assert_eq!(
-            root.get("foo.baz").unwrap().value.as_ref().unwrap(),
-            "world"
-        );
+        assert_eq!(root.get("foo.bar").unwrap().value.as_ref().unwrap(), "hello");
+        assert_eq!(root.get("foo.baz").unwrap().value.as_ref().unwrap(), "world");
     }
 
     /// Perl Config.pm:30-31 — first occurrence wins for duplicate keys.
@@ -287,9 +248,6 @@ mod tests {
         let config = "foo.bar = first\nfoo.bar = second\n";
         let root = Config::parse_config(config, None).unwrap();
         let val = root.get("foo.bar").unwrap().value.as_ref().unwrap();
-        assert_eq!(
-            val, "first",
-            "first-wins: duplicate key should keep first value"
-        );
+        assert_eq!(val, "first", "first-wins: duplicate key should keep first value");
     }
 }

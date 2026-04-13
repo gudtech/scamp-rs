@@ -45,19 +45,12 @@ impl AnnouncementPacket {
     pub fn parse(v: &str) -> Result<Self, AnnouncementParseError> {
         let mut parts = v.split("\n\n");
         let json_blob = parts.next().ok_or(AnnouncementParseError::MissingJson)?;
-        let cert_pem = parts
-            .next()
-            .ok_or(AnnouncementParseError::MissingCertificate)?;
-        let sig_base64 = parts
-            .next()
-            .ok_or(AnnouncementParseError::MissingSignature)?;
+        let cert_pem = parts.next().ok_or(AnnouncementParseError::MissingCertificate)?;
+        let sig_base64 = parts.next().ok_or(AnnouncementParseError::MissingSignature)?;
 
         if let Some(not_empty) = parts.next() {
             if !not_empty.is_empty() {
-                log::warn!(
-                    "Announcement has extra parts after signature: {:?}",
-                    not_empty
-                );
+                log::warn!("Announcement has extra parts after signature: {:?}", not_empty);
                 return Err(AnnouncementParseError::TooManyParts);
             }
         }
@@ -81,30 +74,16 @@ impl AnnouncementPacket {
     /// The signed content is the JSON blob (position 0 of the `\n\n`-split packet).
     /// Matches Perl ServiceInfo.pm:91-108 and Go verify.go:20-37.
     pub fn signature_is_valid(&self) -> bool {
-        match crate::crypto::verify_rsa_sha256(
-            &self.certificate,
-            self.json_blob.as_bytes(),
-            &self.signature,
-        ) {
+        match crate::crypto::verify_rsa_sha256(&self.certificate, self.json_blob.as_bytes(), &self.signature) {
             Ok(valid) => {
                 if !valid {
-                    log::warn!(
-                        "Signature verification returned false for {}",
-                        self.body.info.identity
-                    );
+                    log::warn!("Signature verification returned false for {}", self.body.info.identity);
                 }
                 valid
             }
             Err(e) => {
-                log::error!(
-                    "Signature verification error for {}: {}",
-                    self.body.info.identity,
-                    e
-                );
-                eprintln!(
-                    "Signature verification error for {}: {}",
-                    self.body.info.identity, e
-                );
+                log::error!("Signature verification error for {}: {}", self.body.info.identity, e);
+                eprintln!("Signature verification error for {}: {}", self.body.info.identity, e);
                 false
             }
         }
@@ -123,10 +102,7 @@ mod tests {
 
     #[test]
     fn single_announcement_parses() {
-        let announcement = AnnouncementPacket::parse(include_str!(
-            "../../samples/service_info_packet_v3_full.txt"
-        ))
-        .unwrap();
+        let announcement = AnnouncementPacket::parse(include_str!("../../samples/service_info_packet_v3_full.txt")).unwrap();
         assert!(!announcement.body.info.identity.is_empty());
         assert!(!announcement.certificate.is_empty());
         assert!(!announcement.signature.is_empty());
@@ -134,17 +110,11 @@ mod tests {
 
     #[test]
     fn single_announcement_has_fingerprint() {
-        let announcement = AnnouncementPacket::parse(include_str!(
-            "../../samples/service_info_packet_v3_full.txt"
-        ))
-        .unwrap();
+        let announcement = AnnouncementPacket::parse(include_str!("../../samples/service_info_packet_v3_full.txt")).unwrap();
         let fp = announcement.body.info.fingerprint.as_ref().unwrap();
         // Fingerprint should be colon-separated uppercase hex
         assert!(fp.contains(':'));
-        assert!(fp
-            .chars()
-            .filter(|c| c.is_ascii_alphabetic())
-            .all(|c| c.is_ascii_uppercase()));
+        assert!(fp.chars().filter(|c| c.is_ascii_alphabetic()).all(|c| c.is_ascii_uppercase()));
     }
 
     /// Verify ALL announcements in the live discovery cache have valid signatures.
@@ -164,10 +134,7 @@ mod tests {
         for result in CacheFileAnnouncementIterator::new(file) {
             if let Ok(ann) = result {
                 if ann.signature_is_valid() {
-                    valid_raw = Some(format!(
-                        "{}\n\n{}\n\n{}",
-                        ann.json_blob, ann.certificate, ann.signature
-                    ));
+                    valid_raw = Some(format!("{}\n\n{}\n\n{}", ann.json_blob, ann.certificate, ann.signature));
                     break;
                 }
             }
@@ -193,8 +160,7 @@ mod tests {
 
         let home = std::env::var("HOME").unwrap_or_default();
         let cache_path = format!("{}/GT/backplane/discovery/discovery", home);
-        let file = std::fs::File::open(&cache_path)
-            .expect("Discovery cache not found — is the dev environment running?");
+        let file = std::fs::File::open(&cache_path).expect("Discovery cache not found — is the dev environment running?");
 
         let mut total = 0;
         let mut verified = 0;
@@ -209,12 +175,7 @@ mod tests {
                         println!(
                             "  ✓ {} ({})",
                             announcement.body.info.identity,
-                            announcement
-                                .body
-                                .info
-                                .fingerprint
-                                .as_deref()
-                                .unwrap_or("no fp")
+                            announcement.body.info.fingerprint.as_deref().unwrap_or("no fp")
                         );
                     } else {
                         println!("  ✗ {} SIGNATURE INVALID", announcement.body.info.identity);
@@ -227,14 +188,8 @@ mod tests {
             }
         }
 
-        println!(
-            "\n{} total, {} verified, {} parse errors",
-            total, verified, parse_errors
-        );
-        assert!(
-            verified > 0,
-            "No announcements verified — is the dev environment running?"
-        );
+        println!("\n{} total, {} verified, {} parse errors", total, verified, parse_errors);
+        assert!(verified > 0, "No announcements verified — is the dev environment running?");
         assert_eq!(
             verified,
             total - parse_errors,

@@ -99,22 +99,13 @@ impl ListCommand {
         }
         let mut i = 0;
         for ae in registry.actions_iter() {
-            if sector
-                .as_ref()
-                .is_some_and(|s| !ae.action.sector.contains(s))
-            {
+            if sector.as_ref().is_some_and(|s| !ae.action.sector.contains(s)) {
                 continue;
             }
-            if name
-                .as_ref()
-                .is_some_and(|n| !ae.action.pathver.contains(n))
-            {
+            if name.as_ref().is_some_and(|n| !ae.action.pathver.contains(n)) {
                 continue;
             }
-            if service
-                .as_ref()
-                .is_some_and(|s| !ae.service_info.identity.starts_with(s))
-            {
+            if service.as_ref().is_some_and(|s| !ae.service_info.identity.starts_with(s)) {
                 continue;
             }
             if !all && !ae.authorized {
@@ -177,32 +168,19 @@ impl ListCommand {
             table.add_row(Row::new(h));
         }
         let mut i = 0;
-        let mut unique: std::collections::HashMap<String, (String, HashSet<String>, u32, bool)> =
-            std::collections::HashMap::new();
+        let mut unique: std::collections::HashMap<String, (String, HashSet<String>, u32, bool)> = std::collections::HashMap::new();
 
         for ae in registry.actions_iter() {
-            if sector
-                .as_ref()
-                .is_some_and(|s| !ae.action.sector.contains(s))
-            {
+            if sector.as_ref().is_some_and(|s| !ae.action.sector.contains(s)) {
                 continue;
             }
-            if with_action
-                .as_ref()
-                .is_some_and(|a| !ae.action.pathver.contains(a))
-            {
+            if with_action.as_ref().is_some_and(|a| !ae.action.pathver.contains(a)) {
                 continue;
             }
-            if uri
-                .as_ref()
-                .is_some_and(|u| !ae.service_info.uri.contains(u))
-            {
+            if uri.as_ref().is_some_and(|u| !ae.service_info.uri.contains(u)) {
                 continue;
             }
-            if name
-                .as_ref()
-                .is_some_and(|n| !ae.service_info.identity.starts_with(n))
-            {
+            if name.as_ref().is_some_and(|n| !ae.service_info.identity.starts_with(n)) {
                 continue;
             }
             if !all && !ae.authorized {
@@ -211,14 +189,7 @@ impl ListCommand {
             actions += 1;
             let e = unique
                 .entry(ae.service_info.identity.clone())
-                .or_insert_with(|| {
-                    (
-                        ae.service_info.uri.clone(),
-                        HashSet::new(),
-                        0,
-                        ae.authorized,
-                    )
-                });
+                .or_insert_with(|| (ae.service_info.uri.clone(), HashSet::new(), 0, ae.authorized));
             e.1.insert(ae.action.sector.clone());
             e.2 += 1;
         }
@@ -257,9 +228,7 @@ impl ListCommand {
         let mut actions = 0usize;
 
         for ae in registry.actions_iter() {
-            let entry = sectors
-                .entry(ae.action.sector.clone())
-                .or_insert((0, HashSet::new()));
+            let entry = sectors.entry(ae.action.sector.clone()).or_insert((0, HashSet::new()));
             entry.0 += 1; // Increment action count
             entry.1.insert(ae.service_info.identity.clone());
             services.insert(ae.service_info.identity.clone());

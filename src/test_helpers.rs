@@ -7,9 +7,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::service::handler::{RegisteredAction, ScampReply};
-use crate::transport::beepish::proto::{
-    FlexInt, MessageType, Packet, PacketHeader, PacketType, ParseResult, DATA_CHUNK_SIZE,
-};
+use crate::transport::beepish::proto::{FlexInt, MessageType, Packet, PacketHeader, PacketType, ParseResult, DATA_CHUNK_SIZE};
 use tokio::io::AsyncWriteExt;
 
 /// Create a registered action map with an echo handler for testing.

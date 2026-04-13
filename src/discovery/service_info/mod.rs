@@ -34,12 +34,8 @@ impl ServiceInfo {
             .split(':')
             .nth(1)
             .ok_or_else(|| format!("invalid URI (no port): {}", self.uri))?;
-        let ip = host
-            .parse()
-            .map_err(|e| format!("invalid host '{}': {}", host, e))?;
-        let port = port
-            .parse()
-            .map_err(|e| format!("invalid port '{}': {}", port, e))?;
+        let ip = host.parse().map_err(|e| format!("invalid host '{}': {}", host, e))?;
+        let port = port.parse().map_err(|e| format!("invalid port '{}': {}", port, e))?;
         Ok(SocketAddr::new(ip, port))
     }
 }
@@ -138,16 +134,12 @@ impl From<serde_json::Error> for ServiceInfoParseError {
 impl AnnouncementBody {
     pub fn parse(v: &str) -> Result<Self, ServiceInfoParseError> {
         let value: Value = serde_json::from_str(v)?;
-        let array = value
-            .as_array()
-            .ok_or(ServiceInfoParseError::ExpectedJsonArray)?;
+        let array = value.as_array().ok_or(ServiceInfoParseError::ExpectedJsonArray)?;
         if array.len() != 9 {
             return Err(ServiceInfoParseError::InvalidRootArray);
         }
 
-        let version = array[0]
-            .as_u64()
-            .ok_or(ServiceInfoParseError::MissingField("version"))?;
+        let version = array[0].as_u64().ok_or(ServiceInfoParseError::MissingField("version"))?;
         if version != 3 {
             return Err(ServiceInfoParseError::InvalidField("version"));
         }
@@ -156,32 +148,16 @@ impl AnnouncementBody {
             .as_str()
             .ok_or(ServiceInfoParseError::MissingField("identity"))?
             .to_string();
-        let v3_sector = array[2]
-            .as_str()
-            .ok_or(ServiceInfoParseError::MissingField("sector"))?
-            .to_string();
-        let weight = array[3]
-            .as_u64()
-            .ok_or(ServiceInfoParseError::MissingField("weight"))? as u32;
-        let interval = array[4]
-            .as_u64()
-            .ok_or(ServiceInfoParseError::MissingField("interval"))? as u32;
-        let uri = array[5]
-            .as_str()
-            .ok_or(ServiceInfoParseError::MissingField("uri"))?
-            .to_string();
+        let v3_sector = array[2].as_str().ok_or(ServiceInfoParseError::MissingField("sector"))?.to_string();
+        let weight = array[3].as_u64().ok_or(ServiceInfoParseError::MissingField("weight"))? as u32;
+        let interval = array[4].as_u64().ok_or(ServiceInfoParseError::MissingField("interval"))? as u32;
+        let uri = array[5].as_str().ok_or(ServiceInfoParseError::MissingField("uri"))?.to_string();
 
         let envelopes_and_v4 = array[6]
             .as_array()
-            .ok_or(ServiceInfoParseError::MissingField(
-                "envelopes_and_v4actions",
-            ))?;
-        let v3_actions = array[7]
-            .as_array()
-            .ok_or(ServiceInfoParseError::MissingField("v3_actions"))?;
-        let timestamp = array[8]
-            .as_f64()
-            .ok_or(ServiceInfoParseError::MissingField("timestamp"))?;
+            .ok_or(ServiceInfoParseError::MissingField("envelopes_and_v4actions"))?;
+        let v3_actions = array[7].as_array().ok_or(ServiceInfoParseError::MissingField("v3_actions"))?;
+        let timestamp = array[8].as_f64().ok_or(ServiceInfoParseError::MissingField("timestamp"))?;
 
         let mut v3_envelopes: Vec<String> = Vec::new();
         let mut actions: Vec<Action> = Vec::new();

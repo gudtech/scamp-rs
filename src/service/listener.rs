@@ -35,8 +35,7 @@ pub struct ScampService {
 impl ScampService {
     pub fn new(name: &str, sector: &str) -> Self {
         let random_bytes: [u8; 18] = rand::random();
-        let identity_suffix =
-            base64::Engine::encode(&base64::engine::general_purpose::STANDARD, random_bytes);
+        let identity_suffix = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, random_bytes);
 
         ScampService {
             name: name.to_string(),
@@ -63,11 +62,7 @@ impl ScampService {
 
     pub fn uri(&self) -> Option<String> {
         self.address.map(|addr| {
-            let ip = self
-                .announce_ip
-                .as_deref()
-                .unwrap_or(&addr.ip().to_string())
-                .to_string();
+            let ip = self.announce_ip.as_deref().unwrap_or(&addr.ip().to_string()).to_string();
             format!("beepish+tls://{}:{}", ip, addr.port())
         })
     }
@@ -101,12 +96,7 @@ impl ScampService {
 
     /// Bind with TLS using specified bind address.
     /// Perl Server.pm:27-34: random port in 30100-30399, bind to service address.
-    pub async fn bind_pem(
-        &mut self,
-        key_pem: &[u8],
-        cert_pem: &[u8],
-        bind_ip: std::net::Ipv4Addr,
-    ) -> Result<()> {
+    pub async fn bind_pem(&mut self, key_pem: &[u8], cert_pem: &[u8], bind_ip: std::net::Ipv4Addr) -> Result<()> {
         self.key_pem = Some(key_pem.to_vec());
         self.cert_pem = Some(cert_pem.to_vec());
 
@@ -131,8 +121,7 @@ impl ScampService {
             }
         }
 
-        let listener =
-            listener.ok_or_else(|| anyhow!("Failed to bind after {} tries", bind_tries))?;
+        let listener = listener.ok_or_else(|| anyhow!("Failed to bind after {} tries", bind_tries))?;
         let addr = listener.local_addr()?;
         log::info!("Bound to beepish+tls://{}:{}", addr.ip(), addr.port());
 
@@ -167,12 +156,8 @@ impl ScampService {
     /// Run the service: accept connections until shutdown signal.
     /// JS service.js:78-91: suspend announcer, drain active requests, then exit.
     pub async fn run(self, mut shutdown_rx: tokio::sync::watch::Receiver<bool>) -> Result<()> {
-        let listener = self
-            .listener
-            .ok_or_else(|| anyhow!("Not bound — call bind_pem() first"))?;
-        let tls_acceptor = self
-            .tls_acceptor
-            .ok_or_else(|| anyhow!("Not bound — call bind_pem() first"))?;
+        let listener = self.listener.ok_or_else(|| anyhow!("Not bound — call bind_pem() first"))?;
+        let tls_acceptor = self.tls_acceptor.ok_or_else(|| anyhow!("Not bound — call bind_pem() first"))?;
         let actions = Arc::new(self.actions);
         let active_connections = Arc::new(AtomicU64::new(0));
 
@@ -213,9 +198,7 @@ impl ScampService {
         if active > 0 {
             log::info!("Draining {} active connection(s)...", active);
             let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(30);
-            while active_connections.load(Ordering::Relaxed) > 0
-                && tokio::time::Instant::now() < deadline
-            {
+            while active_connections.load(Ordering::Relaxed) > 0 && tokio::time::Instant::now() < deadline {
                 tokio::time::sleep(std::time::Duration::from_millis(100)).await;
             }
             let remaining = active_connections.load(Ordering::Relaxed);

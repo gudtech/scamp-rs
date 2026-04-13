@@ -39,12 +39,7 @@ impl Requester {
 
     /// Send a request to a discovered service action.
     /// Perl Requester.pm:20-43 (simple_request).
-    pub async fn request(
-        &self,
-        action: &str,
-        version: u32,
-        body: Vec<u8>,
-    ) -> Result<ScampResponse> {
+    pub async fn request(&self, action: &str, version: u32, body: Vec<u8>) -> Result<ScampResponse> {
         self.request_with_opts(RequestOpts {
             action,
             version,
@@ -73,12 +68,10 @@ impl Requester {
             .unwrap_or(false)
             || resp.header.error_code.as_deref() == Some("dispatch_failure");
         if is_dispatch_failure {
-            if let Some(entry) = self.registry.find_action_with_envelope(
-                opts.sector,
-                opts.action,
-                opts.version,
-                &envelope_str(&opts.envelope),
-            ) {
+            if let Some(entry) =
+                self.registry
+                    .find_action_with_envelope(opts.sector, opts.action, opts.version, &envelope_str(&opts.envelope))
+            {
                 self.registry.mark_failed(&entry.service_info.identity);
             }
             log::debug!("dispatch_failure, retrying with different service");
@@ -91,20 +84,8 @@ impl Requester {
     async fn dispatch_once(&self, opts: &RequestOpts<'_>) -> Result<ScampResponse> {
         let entry = self
             .registry
-            .find_action_with_envelope(
-                opts.sector,
-                opts.action,
-                opts.version,
-                &envelope_str(&opts.envelope),
-            )
-            .ok_or_else(|| {
-                anyhow!(
-                    "Action not found: {}:{}.v{}",
-                    opts.sector,
-                    opts.action,
-                    opts.version
-                )
-            })?;
+            .find_action_with_envelope(opts.sector, opts.action, opts.version, &envelope_str(&opts.envelope))
+            .ok_or_else(|| anyhow!("Action not found: {}:{}.v{}", opts.sector, opts.action, opts.version))?;
 
         let timeout_secs = opts
             .timeout_secs

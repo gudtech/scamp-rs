@@ -27,22 +27,14 @@ impl BusInfo {
         let interfaces = get_interface_addrs();
         let default_ip = find_default_ip(&interfaces);
 
-        let service_addrs =
-            resolve_addr_list(config.get::<String>("bus.address"), &interfaces, default_ip);
-        let discovery_addrs = resolve_addr_list(
-            config.get::<String>("discovery.address"),
-            &interfaces,
-            default_ip,
-        );
+        let service_addrs = resolve_addr_list(config.get::<String>("bus.address"), &interfaces, default_ip);
+        let discovery_addrs = resolve_addr_list(config.get::<String>("discovery.address"), &interfaces, default_ip);
         let group: Ipv4Addr = config
             .get::<String>("discovery.multicast_address")
             .and_then(|r| r.ok())
             .and_then(|s| s.parse().ok())
             .unwrap_or_else(|| Ipv4Addr::new(239, 63, 248, 106));
-        let port: u16 = config
-            .get::<u16>("discovery.port")
-            .and_then(|r| r.ok())
-            .unwrap_or(5555);
+        let port: u16 = config.get::<u16>("discovery.port").and_then(|r| r.ok()).unwrap_or(5555);
 
         BusInfo {
             service_addrs,
@@ -54,10 +46,7 @@ impl BusInfo {
 
     /// Primary service address for binding — Perl Server.pm:34.
     pub fn service_addr(&self) -> Ipv4Addr {
-        self.service_addrs
-            .first()
-            .copied()
-            .unwrap_or(Ipv4Addr::UNSPECIFIED)
+        self.service_addrs.first().copied().unwrap_or(Ipv4Addr::UNSPECIFIED)
     }
 }
 
@@ -103,12 +92,7 @@ fn resolve_addr_list(
 /// Find the default private IP — Perl Config.pm:66-76 (_build_interface_info).
 /// Prefers 10.x.x.x, then 192.168.x.x.
 fn find_default_ip(interfaces: &HashMap<String, Vec<Ipv4Addr>>) -> Option<Ipv4Addr> {
-    let mut all_ips: Vec<Ipv4Addr> = interfaces
-        .values()
-        .flatten()
-        .filter(|ip| !ip.is_loopback())
-        .copied()
-        .collect();
+    let mut all_ips: Vec<Ipv4Addr> = interfaces.values().flatten().filter(|ip| !ip.is_loopback()).copied().collect();
 
     // Sort: 10.x first, then 192.168.x, then others
     all_ips.sort_by_key(|ip| {
@@ -139,12 +123,8 @@ fn get_interface_addrs() -> HashMap<String, Vec<Ipv4Addr>> {
         let mut current = ifaddrs;
         while !current.is_null() {
             let ifa = &*current;
-            if !ifa.ifa_addr.is_null()
-                && (*ifa.ifa_addr).sa_family == libc::AF_INET as libc::sa_family_t
-            {
-                let name = std::ffi::CStr::from_ptr(ifa.ifa_name)
-                    .to_string_lossy()
-                    .into_owned();
+            if !ifa.ifa_addr.is_null() && (*ifa.ifa_addr).sa_family == libc::AF_INET as libc::sa_family_t {
+                let name = std::ffi::CStr::from_ptr(ifa.ifa_name).to_string_lossy().into_owned();
                 let sockaddr = ifa.ifa_addr as *const libc::sockaddr_in;
                 let ip = Ipv4Addr::from(u32::from_be((*sockaddr).sin_addr.s_addr));
                 result.entry(name).or_default().push(ip);
@@ -185,22 +165,14 @@ mod tests {
         let mut interfaces = HashMap::new();
         interfaces.insert("eth0".to_string(), vec![Ipv4Addr::new(10, 0, 0, 5)]);
 
-        let addrs = resolve_addr_list(
-            Some(Ok::<_, anyhow::Error>("if:eth0".to_string())),
-            &interfaces,
-            None,
-        );
+        let addrs = resolve_addr_list(Some(Ok::<_, anyhow::Error>("if:eth0".to_string())), &interfaces, None);
         assert_eq!(addrs, vec![Ipv4Addr::new(10, 0, 0, 5)]);
     }
 
     #[test]
     fn test_resolve_raw_ip() {
         let interfaces = HashMap::new();
-        let addrs = resolve_addr_list(
-            Some(Ok::<_, anyhow::Error>("192.168.1.50".to_string())),
-            &interfaces,
-            None,
-        );
+        let addrs = resolve_addr_list(Some(Ok::<_, anyhow::Error>("192.168.1.50".to_string())), &interfaces, None);
         assert_eq!(addrs, vec![Ipv4Addr::new(192, 168, 1, 50)]);
     }
 }

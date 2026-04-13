@@ -10,8 +10,7 @@ use tokio::sync::Mutex;
 use super::handler::{RegisteredAction, ScampReply, ScampRequest};
 use crate::auth::authz::AuthzChecker;
 use crate::transport::beepish::proto::{
-    EnvelopeFormat, FlexInt, MessageType, Packet, PacketHeader, PacketType, ParseResult,
-    DATA_CHUNK_SIZE,
+    EnvelopeFormat, FlexInt, MessageType, Packet, PacketHeader, PacketType, ParseResult, DATA_CHUNK_SIZE,
 };
 
 /// Server connection idle timeout — Perl Server.pm:58, Connection.pm:131-135
@@ -119,11 +118,7 @@ async fn route_packet(
     match packet.packet_type {
         PacketType::Header => {
             if packet.msg_no != *next_incoming_msg_no {
-                log::error!(
-                    "Out of sequence: expected {} got {}",
-                    *next_incoming_msg_no,
-                    packet.msg_no
-                );
+                log::error!("Out of sequence: expected {} got {}", *next_incoming_msg_no, packet.msg_no);
                 return;
             }
             *next_incoming_msg_no += 1;
@@ -160,8 +155,7 @@ async fn route_packet(
         }
         PacketType::Eof => {
             if let Some(msg) = incoming.remove(&packet.msg_no) {
-                dispatch_and_reply(msg, next_outgoing_msg_no, outgoing, writer, actions, authz)
-                    .await;
+                dispatch_and_reply(msg, next_outgoing_msg_no, outgoing, writer, actions, authz).await;
             }
         }
         PacketType::Txerr => {
@@ -185,11 +179,7 @@ async fn route_packet(
             };
             if let Some(state) = outgoing.get_mut(&packet.msg_no) {
                 if ack_val <= state.acknowledged {
-                    log::error!(
-                        "ACK pointer moved backward: {} <= {}",
-                        ack_val,
-                        state.acknowledged
-                    );
+                    log::error!("ACK pointer moved backward: {} <= {}", ack_val, state.acknowledged);
                     return;
                 }
                 if ack_val > state.sent {
@@ -228,11 +218,7 @@ async fn dispatch_and_reply(
     authz: &Option<Arc<AuthzChecker>>,
 ) {
     let request_id = msg.header.request_id;
-    let action_key = format!(
-        "{}.v{}",
-        msg.header.action.to_lowercase(),
-        msg.header.version
-    );
+    let action_key = format!("{}.v{}", msg.header.action.to_lowercase(), msg.header.version);
 
     // C1: Check ticket privileges before dispatch — JS ticket.js:71-93
     // Skip for actions with "noauth" flag, or if no AuthzChecker configured.
@@ -242,10 +228,7 @@ async fn dispatch_and_reply(
         .unwrap_or(false);
     if let Some(checker) = authz {
         if !noauth && !msg.header.ticket.is_empty() {
-            if let Err(e) = checker
-                .check_access(&msg.header.action, &msg.header.ticket)
-                .await
-            {
+            if let Err(e) = checker.check_access(&msg.header.action, &msg.header.ticket).await {
                 log::warn!("Authorization denied for {}: {}", action_key, e);
                 let reply = ScampReply::error(e.to_string(), "unauthorized".to_string());
                 send_reply(reply, request_id, next_outgoing_msg_no, outgoing, writer).await;
@@ -268,10 +251,7 @@ async fn dispatch_and_reply(
     let reply = if let Some(registered) = actions.get(&action_key) {
         (registered.handler)(request).await
     } else {
-        ScampReply::error(
-            format!("No such action: {}", action_key),
-            "not_found".to_string(),
-        )
+        ScampReply::error(format!("No such action: {}", action_key), "not_found".to_string())
     };
 
     send_reply(reply, request_id, next_outgoing_msg_no, outgoing, writer).await;
@@ -358,12 +338,7 @@ mod tests {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     /// Send a single request and collect all response packets.
-    async fn roundtrip(
-        actions: Arc<HashMap<String, RegisteredAction>>,
-        action: &str,
-        version: i32,
-        body: &[u8],
-    ) -> Vec<Packet> {
+    async fn roundtrip(actions: Arc<HashMap<String, RegisteredAction>>, action: &str, version: i32, body: &[u8]) -> Vec<Packet> {
         let (client, server) = tokio::io::duplex(65536);
         let server_handle = tokio::spawn(handle_connection(server, actions, None));
         let (mut client_read, mut client_write) = tokio::io::split(client);

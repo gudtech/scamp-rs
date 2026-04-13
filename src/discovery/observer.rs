@@ -26,15 +26,8 @@ impl ObserverConfig {
             .and_then(|r| r.ok())
             .and_then(|s| s.parse().ok())
             .unwrap_or_else(|| Ipv4Addr::new(239, 63, 248, 106));
-        let port: u16 = config
-            .get::<u16>("discovery.port")
-            .and_then(|r| r.ok())
-            .unwrap_or(5555);
-        ObserverConfig {
-            group,
-            port,
-            interface,
-        }
+        let port: u16 = config.get::<u16>("discovery.port").and_then(|r| r.ok()).unwrap_or(5555);
+        ObserverConfig { group, port, interface }
     }
 }
 
@@ -76,11 +69,7 @@ pub async fn run_observer(
 }
 
 /// Process a single received multicast packet.
-async fn process_packet(
-    data: &[u8],
-    registry: &Arc<RwLock<ServiceRegistry>>,
-    auth: &AuthorizedServices,
-) -> Result<()> {
+async fn process_packet(data: &[u8], registry: &Arc<RwLock<ServiceRegistry>>, auth: &AuthorizedServices) -> Result<()> {
     // Perl Observer.pm:48 — skip 'R' or 'D' prefix if present
     let data = match data.first() {
         Some(b'R') | Some(b'D') => &data[1..],

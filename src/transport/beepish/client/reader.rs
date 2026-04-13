@@ -84,10 +84,7 @@ pub(super) async fn reader_task(
     notify_all_pending(&pending, "Connection lost").await;
 }
 
-async fn notify_all_pending(
-    pending: &Arc<Mutex<HashMap<i64, oneshot::Sender<ScampResponse>>>>,
-    error: &str,
-) {
+async fn notify_all_pending(pending: &Arc<Mutex<HashMap<i64, oneshot::Sender<ScampResponse>>>>, error: &str) {
     let mut pend = pending.lock().await;
     for (_, tx) in pend.drain() {
         let _ = tx.send(ScampResponse {
@@ -112,11 +109,7 @@ async fn route_packet(
         PacketType::Header => {
             // Perl Connection.pm:140 — validate sequential msgno
             if packet.msg_no != *next_incoming_msg_no {
-                log::error!(
-                    "Out of sequence: expected {} got {}",
-                    *next_incoming_msg_no,
-                    packet.msg_no
-                );
+                log::error!("Out of sequence: expected {} got {}", *next_incoming_msg_no, packet.msg_no);
                 return;
             }
             *next_incoming_msg_no += 1;
@@ -206,11 +199,7 @@ async fn route_packet(
             let mut out = outgoing.lock().await;
             if let Some(state) = out.get_mut(&packet.msg_no) {
                 if ack_val <= state.acknowledged {
-                    log::error!(
-                        "ACK pointer moved backward: {} <= {}",
-                        ack_val,
-                        state.acknowledged
-                    );
+                    log::error!("ACK pointer moved backward: {} <= {}", ack_val, state.acknowledged);
                     return;
                 }
                 if ack_val > state.sent {

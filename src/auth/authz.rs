@@ -55,11 +55,7 @@ impl AuthzChecker {
         if let Some(required_privs) = table.get(&key) {
             for &priv_id in required_privs {
                 if !ticket.has_privilege(priv_id) {
-                    return Err(anyhow!(
-                        "Missing required privilege {} for action {}",
-                        priv_id,
-                        action
-                    ));
+                    return Err(anyhow!("Missing required privilege {} for action {}", priv_id, action));
                 }
             }
         }
@@ -82,10 +78,7 @@ impl AuthzChecker {
 
         // Fetch fresh table from Auth.getAuthzTable~1
         // JS ticket.js:55-68
-        let resp = self
-            .requester
-            .request("Auth.getAuthzTable", 1, b"{}".to_vec())
-            .await?;
+        let resp = self.requester.request("Auth.getAuthzTable", 1, b"{}".to_vec()).await?;
 
         let table = parse_authz_response(&resp.body)?;
 
@@ -104,12 +97,9 @@ impl AuthzChecker {
 /// Response format: `{"action.name": [priv_id, ...], "_NAMES": [...], ...}`
 /// JS ticket.js:60-67
 fn parse_authz_response(body: &[u8]) -> Result<HashMap<String, Vec<u64>>> {
-    let json: serde_json::Value =
-        serde_json::from_slice(body).map_err(|e| anyhow!("Invalid authz table JSON: {}", e))?;
+    let json: serde_json::Value = serde_json::from_slice(body).map_err(|e| anyhow!("Invalid authz table JSON: {}", e))?;
 
-    let obj = json
-        .as_object()
-        .ok_or_else(|| anyhow!("Authz table is not a JSON object"))?;
+    let obj = json.as_object().ok_or_else(|| anyhow!("Authz table is not a JSON object"))?;
 
     let mut table = HashMap::new();
     for (key, value) in obj {

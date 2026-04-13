@@ -202,14 +202,7 @@ mod tests {
 
     #[test]
     fn test_rle_encode_strings() {
-        let items = vec![
-            "a".into(),
-            "a".into(),
-            "b".into(),
-            "c".into(),
-            "c".into(),
-            "c".into(),
-        ];
+        let items = vec!["a".into(), "a".into(), "b".into(), "c".into(), "c".into(), "c".into()];
         let rle = rle_encode_strings(&items);
         assert_eq!(rle, vec![json!([2, "a"]), json!("b"), json!([3, "c"])]);
     }
@@ -290,9 +283,6 @@ mod tests {
         // The envelopes array should contain "json" and a v4 hash object
         let json_val: serde_json::Value = serde_json::from_str(&ann.json_blob).unwrap();
         let env_array = json_val.as_array().unwrap()[6].as_array().unwrap();
-        assert!(
-            env_array.iter().any(|v| v.is_object()),
-            "Should contain v4 extension hash"
-        );
+        assert!(env_array.iter().any(|v| v.is_object()), "Should contain v4 extension hash");
     }
 }

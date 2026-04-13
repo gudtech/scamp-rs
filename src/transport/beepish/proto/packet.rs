@@ -45,12 +45,7 @@ impl Packet {
             body_buf.extend_from_slice(&self.body);
         }
 
-        let header_line = format!(
-            "{} {} {}\r\n",
-            std::str::from_utf8(type_str).unwrap(),
-            self.msg_no,
-            body_buf.len()
-        );
+        let header_line = format!("{} {} {}\r\n", std::str::from_utf8(type_str).unwrap(), self.msg_no, body_buf.len());
 
         writer.write_all(header_line.as_bytes()).await?;
         writer.write_all(&body_buf).await?;
@@ -72,9 +67,7 @@ impl Packet {
             Some(pos) => pos,
             None => {
                 if buf[..scan_len].contains(&b'\n') {
-                    return ParseResult::Fatal(anyhow!(
-                        "Malformed request line (bare \\n, expected \\r\\n)"
-                    ));
+                    return ParseResult::Fatal(anyhow!("Malformed request line (bare \\n, expected \\r\\n)"));
                 }
                 if scan_len >= 80 {
                     return ParseResult::Fatal(anyhow!("Overlong header line"));
@@ -143,10 +136,7 @@ impl Packet {
                     Ok(header) => Some(header),
                     // Perl Connection.pm:148-149 — malformed header JSON is fatal
                     Err(e) => {
-                        return ParseResult::Fatal(anyhow!(
-                            "Malformed JSON in received header: {}",
-                            e
-                        ));
+                        return ParseResult::Fatal(anyhow!("Malformed JSON in received header: {}", e));
                     }
                 }
             } else {
