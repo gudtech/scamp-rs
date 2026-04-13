@@ -53,8 +53,8 @@ These areas were confirmed as matching across all implementations:
 | **D10** | No graceful shutdown (weight=0 announce, drain, close, SIGTERM/SIGINT) | Perl, JS, C# | Announcer.pm:96-101 |
 | **D11** | No ticket verification (parse, sig verify, expiry, privileges) | JS, Go, C# | Go ticket.go, JS ticket.js |
 | **D12** | Reader task doesn't set `closed` flag on exit | Perl agent | client.rs:299-373 |
-| **D13** | Unknown packet types: Drop instead of Fatal (all others close connection) | All 4 agents | Connection.pm:187 |
-| **D14** | Malformed HEADER JSON: Drop instead of Fatal | Perl, JS | Connection.pm:148-149 |
+| **D13** | ~~Unknown packet types: Drop instead of Fatal~~ | **Fixed**: now Fatal | Connection.pm:187 |
+| **D14** | ~~Malformed HEADER JSON: Drop instead of Fatal~~ | **Fixed**: now Fatal | Connection.pm:148-149 |
 | **D15** | `ticket`/`identifying_token`/`action` omitted from JSON when empty (Go always serializes) | Go agent | packetheader.go:27,33-34 |
 
 ### Tier 3: Behavioral parity / config

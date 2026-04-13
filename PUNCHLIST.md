@@ -35,6 +35,9 @@ Status legend: `[ ]` todo, `[~]` in progress, `[x]` done
 - [x] Interop verified: Rust client → Perl mainapi with fingerprint check
 - [x] **M4**: UDP multicast announcing (zlib, v4 extension hash, 76-char base64, periodic send)
 - [x] Verified: `lssoa` shows Rust service via normal discovery pipeline
+- [x] **M5**: Full bidirectional interop (Perl Requester → Rust service via discovery)
+- [x] Fix: null JSON values in PacketHeader (`ticket: null`, `identifying_token: null`)
+- [x] Fix: malformed HEADER JSON → Fatal (was Drop); unknown packet types → Fatal (was Drop)
 
 ---
 
@@ -153,9 +156,9 @@ docker exec main perl /service/main/gt-soa/perl/script/lssoa | grep scamp-rs
 the Rust service through the normal discovery pipeline. No hacks.
 
 **Dependency chain** (builds on M4):
-1. [ ] Diagnose Requester timeout: add TLS handshake diagnostics, test with `GTSOA::Logger` debug logging from inside `main` container
-2. [ ] Fix root cause (likely TLS cert presentation or AnyEvent compatibility — see DEFICIENCIES.md investigation notes)
-3. [ ] Verify: Rust service announced via multicast → cache service picks up → Perl Requester discovers → sends request → Rust handles → Perl receives response
+1. [x] Diagnose Requester timeout: root cause was `ticket: null` in JSON header failing String deserialization
+2. [x] Fix: `nullable_string` deserializer for ticket, identifying_token, action fields
+3. [x] Verify: Rust service → multicast → cache → Perl Requester discovers → sends request → Rust handles → Perl receives response
 
 **Verification**:
 ```bash
