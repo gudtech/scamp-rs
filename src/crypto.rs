@@ -109,21 +109,22 @@ mod tests {
         assert_eq!(der, vec![1, 2, 3, 4]);
     }
 
+    /// Verify fingerprint against dev cert.
+    /// Run with: cargo test -- --ignored test_fingerprint_of_dev_cert
     #[test]
+    #[ignore]
     fn test_fingerprint_of_dev_cert() {
-        // If the dev cert exists, verify the fingerprint matches what openssl produces
         let cert_path = format!(
             "{}/GT/backplane/devkeys/dev.crt",
             std::env::var("HOME").unwrap_or_default()
         );
-        if let Ok(cert_pem) = std::fs::read_to_string(&cert_path) {
-            let fp = cert_pem_fingerprint(&cert_pem).unwrap();
-            // The dev cert fingerprint (from openssl x509 -fingerprint -sha1):
-            assert_eq!(
-                fp,
-                "BC:6E:86:C2:46:44:F7:DC:7F:1D:17:89:D1:9A:E5:09:E4:08:8B:B0",
-                "Dev cert fingerprint mismatch"
-            );
-        }
+        let cert_pem = std::fs::read_to_string(&cert_path)
+            .unwrap_or_else(|_| panic!("Dev cert not found at {}", cert_path));
+        let fp = cert_pem_fingerprint(&cert_pem).unwrap();
+        assert_eq!(
+            fp,
+            "BC:6E:86:C2:46:44:F7:DC:7F:1D:17:89:D1:9A:E5:09:E4:08:8B:B0",
+            "Dev cert fingerprint mismatch"
+        );
     }
 }

@@ -78,34 +78,35 @@ impl AuthorizedServices {
         let content = fs::read_to_string(&self.file_path)?;
         let metadata = fs::metadata(&self.file_path)?;
         self.last_mtime = Some(metadata.modified()?);
+        self.parse_content(&content);
+        Ok(())
+    }
+
+    /// Parse authorized_services content into entries.
+    /// Used by reload() and tests.
+    fn parse_content(&mut self, content: &str) {
         self.entries.clear();
 
         for line in content.lines() {
-            // Strip comments (Perl ServiceInfo.pm:125-126)
+            // Strip comments — Perl ServiceInfo.pm:125-126
             let line = line.split('#').next().unwrap_or("").trim();
             if line.is_empty() {
                 continue;
             }
 
-            // Split: fingerprint followed by whitespace followed by tokens
             // Perl: my ($fingerprint, $toks) = $line =~ /^(\S*)\s*(.*)$/;
             let (fingerprint, tokens_str) = match line.split_once(char::is_whitespace) {
                 Some((fp, rest)) => (fp.trim(), rest.trim()),
-                None => continue, // line with only a fingerprint, no tokens
+                None => continue,
             };
 
-            // Parse comma-separated tokens
             // Perl ServiceInfo.pm:130: my @toks = map { quotemeta } split /\s*,\s*/, $toks;
             let patterns: Vec<regex::Regex> = tokens_str
                 .split(',')
                 .map(|t| t.trim())
                 .filter(|t| !t.is_empty())
                 .filter_map(|token| {
-                    // Escape for regex (quotemeta equivalent)
                     let escaped = regex::escape(token);
-
-                    // If token contains ':', replace ':ALL' with ':.*'
-                    // If no ':', prefix with 'main:'
                     // Perl ServiceInfo.pm:131-132
                     let pattern = if escaped.contains(':') {
                         escaped.replace(":ALL", ":.*")
@@ -125,8 +126,6 @@ impl AuthorizedServices {
                 AuthEntry { patterns },
             );
         }
-
-        Ok(())
     }
 
     /// Check if an action is authorized for a given fingerprint.
@@ -160,36 +159,7 @@ mod tests {
 
     fn make_auth(content: &str) -> AuthorizedServices {
         let mut svc = AuthorizedServices::empty();
-        svc.file_path = "test".to_string(); // non-empty to enable parsing
-        // Simulate parsing directly
-        svc.entries.clear();
-        for line in content.lines() {
-            let line = line.split('#').next().unwrap_or("").trim();
-            if line.is_empty() {
-                continue;
-            }
-            let (fingerprint, tokens_str) = match line.split_once(char::is_whitespace) {
-                Some((fp, rest)) => (fp.trim(), rest.trim()),
-                None => continue,
-            };
-            let patterns: Vec<regex::Regex> = tokens_str
-                .split(',')
-                .map(|t| t.trim())
-                .filter(|t| !t.is_empty())
-                .filter_map(|token| {
-                    let escaped = regex::escape(token);
-                    let pattern = if escaped.contains(':') {
-                        escaped.replace(":ALL", ":.*")
-                    } else {
-                        format!("main:{}", escaped)
-                    };
-                    let rx = format!("(?i)^(?:{})(?:\\.|$)", pattern);
-                    regex::Regex::new(&rx).ok()
-                })
-                .collect();
-            svc.entries
-                .insert(fingerprint.to_string(), AuthEntry { patterns });
-        }
+        svc.parse_content(content);
         svc
     }
 

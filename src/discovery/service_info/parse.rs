@@ -89,7 +89,7 @@ pub(super) fn parse_v4_actions(
     Ok(())
 }
 
-fn unrle<T>(
+pub(super) fn unrle<T>(
     obj: &Map<String, Value>, name: &'static str, required: bool, len: usize,
 ) -> Result<Vec<T>, ServiceInfoParseError>
 where
