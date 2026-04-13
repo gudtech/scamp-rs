@@ -6,6 +6,7 @@ use anyhow::{anyhow, Result};
 use log;
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio_native_tls::native_tls;
@@ -155,7 +156,12 @@ impl ScampService {
         )
     }
 
-    pub async fn run(self) -> Result<()> {
+    /// Run the service: accept connections until shutdown signal.
+    /// JS service.js:78-91: suspend announcer, drain active requests, then exit.
+    pub async fn run(
+        self,
+        mut shutdown_rx: tokio::sync::watch::Receiver<bool>,
+    ) -> Result<()> {
         let listener = self
             .listener
             .ok_or_else(|| anyhow!("Not bound — call bind_pem() first"))?;
@@ -163,25 +169,58 @@ impl ScampService {
             .tls_acceptor
             .ok_or_else(|| anyhow!("Not bound — call bind_pem() first"))?;
         let actions = Arc::new(self.actions);
+        let active_connections = Arc::new(AtomicU64::new(0));
 
+        // Accept connections until shutdown
         loop {
-            let (stream, peer_addr) = listener.accept().await?;
-            stream.set_nodelay(true)?;
-            let tls_acceptor = tls_acceptor.clone();
-            let actions = actions.clone();
+            tokio::select! {
+                result = listener.accept() => {
+                    let (stream, peer_addr) = result?;
+                    stream.set_nodelay(true)?;
+                    let tls_acceptor = tls_acceptor.clone();
+                    let actions = actions.clone();
+                    let active = active_connections.clone();
+                    active.fetch_add(1, Ordering::Relaxed);
 
-            tokio::spawn(async move {
-                match tls_acceptor.accept(stream).await {
-                    Ok(tls_stream) => {
-                        log::debug!("Accepted connection from {}", peer_addr);
-                        server_connection::handle_connection(tls_stream, actions).await;
-                    }
-                    Err(e) => {
-                        log::error!("TLS accept failed from {}: {}", peer_addr, e);
+                    tokio::spawn(async move {
+                        match tls_acceptor.accept(stream).await {
+                            Ok(tls_stream) => {
+                                log::debug!("Accepted connection from {}", peer_addr);
+                                server_connection::handle_connection(tls_stream, actions).await;
+                            }
+                            Err(e) => {
+                                log::error!("TLS accept failed from {}: {}", peer_addr, e);
+                            }
+                        }
+                        active.fetch_sub(1, Ordering::Relaxed);
+                    });
+                }
+                _ = shutdown_rx.changed() => {
+                    if *shutdown_rx.borrow() {
+                        break;
                     }
                 }
-            });
+            }
         }
+
+        // Drain active connections (30s timeout)
+        let active = active_connections.load(Ordering::Relaxed);
+        if active > 0 {
+            log::info!("Draining {} active connection(s)...", active);
+            let deadline = tokio::time::Instant::now()
+                + std::time::Duration::from_secs(30);
+            while active_connections.load(Ordering::Relaxed) > 0
+                && tokio::time::Instant::now() < deadline
+            {
+                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            }
+            let remaining = active_connections.load(Ordering::Relaxed);
+            if remaining > 0 {
+                log::warn!("Shutdown timeout: {} connections still active", remaining);
+            }
+        }
+
+        Ok(())
     }
 }
 

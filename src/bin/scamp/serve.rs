@@ -93,8 +93,9 @@ impl ServeCommand {
             mcast_config.group, mcast_config.port, mcast_config.interval_secs, mcast_config.interface
         );
 
-        // Shutdown signal
+        // Shutdown signal — cloned for announcer and listener
         let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
+        let service_shutdown_rx = shutdown_rx.clone();
 
         // Build packet closure — captures service state for announcer
         let build_packet = {
@@ -145,8 +146,8 @@ impl ServeCommand {
             let _ = shutdown_tx.send(true);
         });
 
-        // Run the service (accept connections)
-        service.run().await
+        // Run the service (accepts connections until shutdown, then drains)
+        service.run(service_shutdown_rx).await
     }
 }
 
