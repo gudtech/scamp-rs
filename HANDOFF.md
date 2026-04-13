@@ -44,20 +44,25 @@ identically to the Perl implementation?" When in doubt, match Perl exactly.
 **M3: Authorized Services Filtering** ✓
 **M4: Multicast Announcing** ✓
 **M5: Full Bidirectional Interop** ✓
-**M6: Wire Protocol Hardening** ✓ (mostly — watermark pause/resume remains)
+**M6: Wire Protocol Hardening** ✓
 **M7: Config & Behavioral Parity** ✓ (mostly — bus_info/interface resolution remains)
 
-Key fixes this session:
-- `ticket: null` → `nullable_string` deserializer (was causing silent HEADER drops)
+Key fixes this session (2026-04-13, session 2):
+- Extracted server_connection.rs from listener.rs (Q5: was 408 lines)
+- 6 server hot path tests + 4 client hot path tests (T1/T2)
+- Client-side flow control watermark at 65536 bytes (D5b)
+- Fixed Packet::parse binary body bug: was UTF-8 decoding body bytes
+- Made reader_task/writer_task generic (was hardcoded to TlsStream)
+- Added ConnectionHandle::from_stream() for testing without TLS
+- Added Debug derive to ScampResponse
+
+Previous session fixes:
+- `ticket: null` → `nullable_string` deserializer
 - Config first-wins, inline `#` comments, GTSOA env var
-- `\r\n` required in header parsing (was accepting bare `\n`)
-- ACK validation (format, monotonic, not-past-end)
-- Server idle timeout 120s
-- DATA chunk 2048 (was 131072)
-- Always serialize action/ticket/identifying_token
-- Timestamp replay protection + service deduplication
-- Announcement TTL/expiry + cache staleness check
-- Wire protocol test fixtures from Perl (12 new tests, 55 total)
+- `\r\n` required, ACK validation, server idle timeout 120s
+- DATA chunk 2048, timestamp replay protection
+- Wire protocol test fixtures from Perl
+- 65 tests total (was 55), all passing
 
 ### Verified Interop (Docker on gtnet)
 
@@ -74,7 +79,7 @@ Key fixes this session:
 
 ### Next Work: M8/M9 — Discovery + Production Hardening
 
-**16 remaining items** (see DEFICIENCIES.md). Mostly larger features:
+**11 remaining items** (see DEFICIENCIES.md):
 
 **M8 — Discovery Hardening:**
 - D24: Multicast receiver/observer
@@ -89,12 +94,9 @@ Key fixes this session:
 - D29: Announceable flag filtering
 - D31/D32: Failure tracking, retry
 
-**Remaining wire items:**
-- D5b: Send-side flow control watermark pause/resume (ACK validation done)
-- Q5: listener.rs (390 lines) exceeds 300-line limit
-
-**Remaining test items:**
-- T1: Server hot path tests
+**Remaining quality items:**
+- Q5: list.rs (314 lines) exceeds 300-line limit
+- T4/T6/T8/T10: Test coverage gaps
 - T2: Client request sending tests
 - T4: authorized_services tests through load()
 - T10: RLE decode edge cases

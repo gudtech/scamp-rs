@@ -85,6 +85,11 @@ Confirmed matching across all implementations:
 | D21 | Inline `#` comments not stripped | Fixed: strip after `#` |
 | D27 | TXERR body not validated | Fixed: reject empty/"0" |
 | D30 | DATA chunk size 131072 | Fixed: 2048 to match Perl |
+| D5b | No send-side flow control watermark | Fixed: client-side pause at 65536 unacked bytes, Notify on ACK |
+| T1 | Zero tests for server hot path | Fixed: 6 tests via duplex streams (echo, error, ping, ACK, multi-chunk) |
+| T2 | Zero tests for client request sending | Fixed: 4 tests (echo, error, large body, timeout) |
+| Q5 | listener.rs exceeds 300-line limit | Fixed: extracted server_connection.rs (299 prod lines + tests) |
+| BUG | Packet::parse failed on binary body data | Fixed: find \r\n in raw bytes before UTF-8 decode |
 
 ## Remaining Deficiencies
 
@@ -92,13 +97,7 @@ Confirmed matching across all implementations:
 
 | ID | Severity | Description | File:Line |
 |----|----------|-------------|-----------|
-| **Q5** | Low | `listener.rs` (390) and `list.rs` (314) exceed 300-line limit | coding standards |
-
-### Remaining Wire Protocol
-
-| ID | Description | Ref |
-|----|-------------|-----|
-| **D5b** | Send-side flow control: pause/resume at 65536 watermark (ACK validation done, watermark not) | connection.js:298 |
+| **Q5** | Low | `list.rs` (314) exceeds 300-line limit | coding standards |
 
 ### Remaining Discovery
 
@@ -129,8 +128,6 @@ Confirmed matching across all implementations:
 
 | ID | Description | Impact |
 |----|-------------|--------|
-| **T1** | Zero tests for server hot path | Critical |
-| **T2** | Zero tests for client request sending | Critical |
 | **T4** | `make_auth()` duplicates production logic | Medium |
 | **T6** | `test_fingerprint_of_dev_cert` silently passes when cert missing | Low |
 | **T8** | No shared test helpers for common patterns | Medium |
