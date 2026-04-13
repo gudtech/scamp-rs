@@ -53,8 +53,8 @@ impl AnnouncementPacket {
             .ok_or(AnnouncementParseError::MissingSignature)?;
 
         if let Some(not_empty) = parts.next() {
-            if not_empty.len() > 0 {
-                println!("TOOMANYPARTS {not_empty:?}");
+            if !not_empty.is_empty() {
+                log::warn!("Announcement has extra parts after signature: {:?}", not_empty);
                 return Err(AnnouncementParseError::TooManyParts);
             }
         }

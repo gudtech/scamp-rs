@@ -69,8 +69,10 @@ mod tests {
     fn test_cache_file_announcement_iterator() {
         let cache_file = File::open("samples/discovery_cache_file").unwrap();
         let iterator = CacheFileAnnouncementIterator::new(cache_file);
-        for announcement in iterator {
-            println!("{:?}", announcement);
-        }
+        let announcements: Vec<_> = iterator.collect();
+        assert!(!announcements.is_empty(), "Should parse at least one announcement");
+        // At least one should parse successfully
+        let ok_count = announcements.iter().filter(|a| a.is_ok()).count();
+        assert!(ok_count > 0, "At least one announcement should parse successfully");
     }
 }

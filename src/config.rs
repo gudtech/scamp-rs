@@ -39,7 +39,7 @@ impl Config {
         // or from one of several default paths
         let config_path = Self::get_config_path(config_path)?;
 
-        println!("Using config path: {}", config_path.path.to_str().unwrap());
+        log::info!("Using config path: {}", config_path.path.display());
 
         let config_contents = std::fs::read_to_string(&config_path.path)?;
         let root = Self::parse_config(&config_contents, config_path.conf_rewrites)?;

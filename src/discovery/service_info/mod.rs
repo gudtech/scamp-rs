@@ -19,11 +19,17 @@ pub struct ServiceInfo {
 }
 
 impl ServiceInfo {
-    pub fn socket_addr(&self) -> SocketAddr {
-        let addr = self.uri.split("://").nth(1).unwrap();
-        let host = addr.split(':').next().unwrap();
-        let port = addr.split(':').nth(1).unwrap();
-        SocketAddr::new(host.parse().unwrap(), port.parse().unwrap())
+    /// Parse the socket address from the URI (e.g., `beepish+tls://10.0.0.1:30100`).
+    pub fn socket_addr(&self) -> Result<SocketAddr, String> {
+        let addr = self.uri.split("://").nth(1)
+            .ok_or_else(|| format!("invalid URI (no ://): {}", self.uri))?;
+        let host = addr.split(':').next()
+            .ok_or_else(|| format!("invalid URI (no host): {}", self.uri))?;
+        let port = addr.split(':').nth(1)
+            .ok_or_else(|| format!("invalid URI (no port): {}", self.uri))?;
+        let ip = host.parse().map_err(|e| format!("invalid host '{}': {}", host, e))?;
+        let port = port.parse().map_err(|e| format!("invalid port '{}': {}", port, e))?;
+        Ok(SocketAddr::new(ip, port))
     }
 }
 

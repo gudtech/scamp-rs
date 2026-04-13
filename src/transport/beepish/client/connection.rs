@@ -88,7 +88,8 @@ impl ConnectionHandle {
             .danger_accept_invalid_certs(true)
             .build()?;
         let connector = TlsConnector::from(tls);
-        let addr = service_info.socket_addr();
+        let addr = service_info.socket_addr()
+            .map_err(|e| anyhow::anyhow!("Bad service URI: {}", e))?;
 
         let stream = timeout(Duration::from_secs(30), TcpStream::connect(addr))
             .await.context("TCP connection timed out")?.context("Failed to connect")?;

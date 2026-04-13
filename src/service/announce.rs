@@ -6,7 +6,7 @@
 
 use anyhow::Result;
 use serde_json::{json, Value};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use super::handler::ActionInfo;
 
@@ -36,7 +36,7 @@ pub fn build_announcement_packet(
 
     // Build v3 action classes and v4 extension vectors
     // Perl Announcer.pm:127-157
-    let mut v3_class_map: HashMap<String, Vec<Value>> = HashMap::new();
+    let mut v3_class_map: BTreeMap<String, Vec<Value>> = BTreeMap::new();
     let v4_acns: Vec<String> = Vec::new();
     let v4_acname: Vec<String> = Vec::new();
     let v4_acver: Vec<u32> = Vec::new();
