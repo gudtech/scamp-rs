@@ -44,8 +44,17 @@ Confirmed matching across all implementations:
 | D2 | No zlib compression | Fixed: flate2 Compression::best() |
 | D3 | Config keys not read | Fixed: `discovery.multicast_address`, `discovery.port` |
 | D4 | No V4 extension hash | Fixed: RLE-encoded action vectors in envelopes array |
+| D12 | Reader task doesn't set closed flag | Fixed: set on reader exit |
 | D13 | Unknown packet types: Drop instead of Fatal | Fixed: now Fatal |
 | D14 | Malformed HEADER JSON: Drop instead of Fatal | Fixed: now Fatal |
+| D15 | Empty fields omitted from header JSON | Fixed: always serialize action/ticket/identifying_token |
+| D16 | Header line accepts bare `\n` | Fixed: require `\r\n` |
+| D17 | Three timeouts conflated | Fixed: distinct constants (75/90/120s) |
+| D19 | Config last-wins for duplicates | Fixed: first-wins |
+| D20 | GTSOA env var not checked | Fixed: checked after SCAMP_CONFIG |
+| D21 | Inline `#` comments not stripped | Fixed: strip after `#` |
+| D27 | TXERR body not validated | Fixed: reject empty/"0" |
+| D30 | DATA chunk size 131072 | Fixed: 2048 to match Perl |
 
 ## Remaining Deficiencies
 
@@ -65,10 +74,6 @@ Confirmed matching across all implementations:
 |----|-------------|-------------|-----|
 | **D5** | No send-side flow control (validate ACKs, pause at 65536, resume) | Perl, JS, C# | Connection.pm:177-183, connection.js:237-250 |
 | **D6** | No connection idle timeout (`_adj_timeout`: busy/pending→no timeout, idle→configured) | Perl, JS | Connection.pm:131-135 |
-| **D12** | Reader task doesn't set `closed` flag on exit | All agents | client/reader.rs |
-| **D16** | Header line parsing accepts bare `\n` (Perl/JS/C# require `\r\n`) | All 4 agents | Connection.pm:46 |
-| **D27** | TXERR body not validated (empty/"0" should error) | JS | connection.js:229 |
-| **D30** | Per-packet flush inefficiency (should batch); DATA chunk 131072 vs Perl's 2048 | Perl, JS | Connection.pm:200,218 |
 
 ### Discovery / Registry (Tier 2)
 
@@ -87,7 +92,6 @@ Confirmed matching across all implementations:
 |----|-------------|-------------|-----|
 | **D10** | No graceful shutdown (drain active requests before close) | Perl, JS, C# | service.js:78-91 |
 | **D11** | No ticket verification (parse, sig verify, expiry, privileges) | JS, Go, C# | ticket.go, ticket.js |
-| **D17** | Three timeouts conflated: server=120s, client=90s, rpc=75s | Perl, C# | Client.pm:40, Server.pm:58 |
 | **D18** | Per-action timeout from `t600` flags not used (value + 5s) | Perl, JS | ServiceInfo.pm:257-258 |
 | **D29** | Flags not filtered to announceable set during announcement building | Perl | Announcer.pm:103 |
 
@@ -95,10 +99,6 @@ Confirmed matching across all implementations:
 
 | ID | Description | Confirmed by | Ref |
 |----|-------------|-------------|-----|
-| **D15** | `ticket`/`identifying_token`/`action` omitted when empty (Go always serializes) | Go | packetheader.go:27,33-34 |
-| **D19** | Config: duplicate key handling (Rust last-wins vs Perl first-wins) | Perl | Config.pm:30-31 |
-| **D20** | Config: `GTSOA` env var not checked (Perl canonical) | Perl | Config.pm:40 |
-| **D21** | Config: inline `# comments` not stripped mid-line | Perl, C# | Config.pm:20 |
 | **D22** | No `bus_info()` interface resolution (`if:ethN`, auto-detect private IP) | Perl, C# | Config.pm:59-101 |
 | **D23** | Server binds to `0.0.0.0` instead of `service.address` config | Perl, C# | Server.pm:34 |
 | **D28** | No high-level Requester API (lookup+connect+request+JSON) | Perl, JS, C# | Requester.pm:20-43 |
