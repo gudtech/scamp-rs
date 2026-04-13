@@ -33,6 +33,8 @@ Status legend: `[ ]` todo, `[~]` in progress, `[x]` done
 - [x] **M3**: authorized_services parsing, regex matching, registry filtering
 - [x] V4 accompat filter enabled (was commented out)
 - [x] Interop verified: Rust client → Perl mainapi with fingerprint check
+- [x] **M4**: UDP multicast announcing (zlib, v4 extension hash, 76-char base64, periodic send)
+- [x] Verified: `lssoa` shows Rust service via normal discovery pipeline
 
 ---
 
@@ -118,14 +120,14 @@ docker exec main perl /service/main/gt-soa/perl/script/lssoa | grep health_check
 cache service picks up. `lssoa` shows the Rust service.
 
 **Dependency chain**:
-1. [ ] Read config: `discovery.multicast_address` (default `239.63.248.106`), `discovery.port` (default `5555`), `bus.address` / `discovery.address`
-2. [ ] Create UDP socket, join multicast group, set multicast interface
-3. [ ] Zlib compress announcement packet before sending (Perl `Announcer.pm:203`, `compress($pkt, 9)`)
-4. [ ] Send on interval (default 5s)
-5. [ ] Fix announcement format: v4 extension hash in envelopes array, RLE encoding for action vectors
-6. [ ] Fix base64 line-wrapping (76-char lines to match Perl `encode_base64`)
-7. [ ] Fix flags: filter to announceable set (`read, update, destroy, create, noauth, secret`)
-8. [ ] Shutdown: weight=0, send 10 rounds at 1s interval, then stop
+1. [x] Read config: `discovery.multicast_address` (default `239.63.248.106`), `discovery.port` (default `5555`)
+2. [x] Create UDP socket, join multicast group, set multicast interface (socket2)
+3. [x] Zlib compress announcement packet before sending (flate2, level 9)
+4. [x] Send on interval (default 5s)
+5. [x] Fix announcement format: v4 extension hash in envelopes array, RLE encoding for action vectors
+6. [x] Fix base64 line-wrapping (76-char lines to match Perl `encode_base64`)
+7. [~] Fix flags: filter to announceable set — constant defined, not yet applied (actions don't have flags yet)
+8. [x] Shutdown: weight=0, send 10 rounds at 1s interval, then stop
 
 **Verification**:
 ```bash

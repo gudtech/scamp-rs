@@ -1,6 +1,6 @@
 use anyhow::Result;
 use scamp::config::Config;
-use scamp::service::{ScampReply, ScampService};
+use scamp::service::{MulticastConfig, ScampReply, ScampService};
 
 #[derive(clap::Parser, Debug, Clone)]
 pub struct ServeCommand {
@@ -46,7 +46,6 @@ impl ServeCommand {
                 .get::<String>(&format!("{}.key", self.name))
                 .and_then(|r| r.ok())
                 .unwrap_or_else(|| {
-                    // Fall back to dev key
                     let home = std::env::var("HOME").unwrap_or_default();
                     format!("{}/GT/backplane/devkeys/dev.key", home)
                 })
@@ -70,34 +69,97 @@ impl ServeCommand {
 
         service.bind_pem(&key_pem, &cert_pem).await?;
 
-        // Set announce IP if provided, or auto-detect from hostname
-        if let Some(ip) = &self.announce_ip {
-            service.set_announce_ip(ip);
+        // Determine announce IP
+        let announce_ip = if let Some(ip) = &self.announce_ip {
+            ip.clone()
         } else {
-            // Try to detect a non-loopback IP for announcing
-            if let Ok(hostname) = std::env::var("HOSTNAME") {
-                // In Docker, HOSTNAME is the container ID; resolve it to get the container IP
-                if let Ok(addrs) = tokio::net::lookup_host(format!("{}:0", hostname)).await {
-                    for addr in addrs {
-                        if !addr.ip().is_loopback() {
-                            service.set_announce_ip(&addr.ip().to_string());
-                            break;
-                        }
-                    }
-                }
-            }
-        }
+            detect_announce_ip().await.unwrap_or_else(|| "127.0.0.1".into())
+        };
+        service.set_announce_ip(&announce_ip);
 
         println!("  * Service identity: {}", service.identity());
         println!("  * Listening on: {}", service.uri().unwrap_or_default());
         println!("  * Registered actions: ScampRsTest.echo~1, ScampRsTest.health_check~1");
 
-        // TODO: implement UDP multicast announcement sending (P4-1)
-        // Services announce via multicast; the cache service receives and writes to cache file.
-        // Direct cache file writing is wrong — that's exclusively the cache service's job.
-        println!("  * WARNING: Multicast announcing not yet implemented. Service will not be discoverable.");
+        // Set up multicast announcing
+        let mcast_interface: std::net::Ipv4Addr = announce_ip.parse().unwrap_or_else(|_| {
+            log::warn!("Cannot parse announce IP '{}' for multicast; using 0.0.0.0", announce_ip);
+            std::net::Ipv4Addr::UNSPECIFIED
+        });
+        let mcast_config = MulticastConfig::from_config(config, mcast_interface);
+
+        println!(
+            "  * Multicast: {}:{} every {}s via {}",
+            mcast_config.group, mcast_config.port, mcast_config.interval_secs, mcast_config.interface
+        );
+
+        // Shutdown signal
+        let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
+
+        // Build packet closure — captures service state for announcer
+        let build_packet = {
+            let service_ref = &service;
+            move |active: bool| -> anyhow::Result<Vec<u8>> {
+                service_ref.build_announcement_packet(active)
+            }
+        };
+
+        // Spawn multicast announcer
+        let _announcer_handle = {
+            // Build initial packet to verify it works before spawning
+            let _test_packet = build_packet(true)?;
+            println!("  * Announcement packet built successfully");
+
+            // We need to move the build function into the spawned task.
+            // Build packets from the service reference directly.
+            let identity = service.identity().to_string();
+            let sector = self.sector.clone();
+            let envelopes = vec!["json".to_string()];
+            let uri = service.uri().ok_or_else(|| anyhow::anyhow!("No URI"))?;
+            let key = key_pem.clone();
+            let cert = cert_pem.clone();
+            let actions = service.actions_snapshot();
+
+            tokio::spawn(async move {
+                let build_fn = move |active: bool| -> anyhow::Result<Vec<u8>> {
+                    scamp::service::announce_raw(
+                        &identity, &sector, &envelopes, &uri, &actions,
+                        &key, &cert, active,
+                    )
+                };
+                if let Err(e) = scamp::service::multicast::run_announcer(
+                    mcast_config, build_fn, shutdown_rx,
+                ).await {
+                    log::error!("Announcer failed: {}", e);
+                }
+            })
+        };
+
+        println!("  * Multicast announcing started");
         println!("  * Press Ctrl+C to stop");
 
+        // Handle Ctrl+C for graceful shutdown
+        tokio::spawn(async move {
+            tokio::signal::ctrl_c().await.ok();
+            println!("\n  * Shutting down (sending weight=0 announcements)...");
+            let _ = shutdown_tx.send(true);
+        });
+
+        // Run the service (accept connections)
         service.run().await
     }
+}
+
+/// Try to detect a non-loopback IP for announcing (Docker hostname resolution).
+async fn detect_announce_ip() -> Option<String> {
+    if let Ok(hostname) = std::env::var("HOSTNAME") {
+        if let Ok(addrs) = tokio::net::lookup_host(format!("{}:0", hostname)).await {
+            for addr in addrs {
+                if !addr.ip().is_loopback() {
+                    return Some(addr.ip().to_string());
+                }
+            }
+        }
+    }
+    None
 }

@@ -11,11 +11,11 @@ use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
-use tokio_native_tls::native_tls::{self, Identity};
+use tokio_native_tls::native_tls;
 use tokio_native_tls::TlsAcceptor;
 
 use super::announce;
-use super::handler::{ActionHandlerFn, RegisteredAction, ScampReply, ScampRequest};
+use super::handler::{ActionHandlerFn, ActionInfo, RegisteredAction, ScampReply, ScampRequest};
 use crate::transport::beepish::proto::{
     EnvelopeFormat, FlexInt, MessageType, Packet, PacketHeader, PacketType, ParseResult,
     DATA_CHUNK_SIZE,
@@ -80,6 +80,11 @@ impl ScampService {
         self.announce_ip = Some(ip.to_string());
     }
 
+    /// Snapshot of registered action info for use by the announcer task.
+    pub fn actions_snapshot(&self) -> Vec<ActionInfo> {
+        self.actions.values().map(ActionInfo::from).collect()
+    }
+
     pub fn register<F, Fut>(&mut self, action: &str, version: i32, handler: F)
     where
         F: Fn(ScampRequest) -> Fut + Send + Sync + 'static,
@@ -133,19 +138,26 @@ impl ScampService {
         Ok(())
     }
 
-    pub fn build_announcement_packet(&self) -> Result<String> {
+    /// Build a signed announcement packet (uncompressed bytes).
+    /// Perl Announcer.pm:122-204
+    pub fn build_announcement_packet(&self, active: bool) -> Result<Vec<u8>> {
         let key_pem = self.key_pem.as_ref().ok_or_else(|| anyhow!("No key"))?;
         let cert_pem = self.cert_pem.as_ref().ok_or_else(|| anyhow!("No cert"))?;
         let uri = self.uri().ok_or_else(|| anyhow!("Not bound"))?;
+        let action_infos: Vec<ActionInfo> =
+            self.actions.values().map(ActionInfo::from).collect();
 
         announce::build_announcement_packet(
             &self.identity,
             &self.sector,
             &self.envelopes,
             &uri,
-            &self.actions,
+            &action_infos,
             key_pem,
             cert_pem,
+            1,  // weight
+            5,  // interval_secs
+            active,
         )
     }
 

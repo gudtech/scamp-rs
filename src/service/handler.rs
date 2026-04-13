@@ -54,3 +54,19 @@ pub(crate) struct RegisteredAction {
     pub version: i32,
     pub handler: ActionHandlerFn,
 }
+
+/// Lightweight action info for announcement building (no handler).
+#[derive(Clone, Debug)]
+pub struct ActionInfo {
+    pub name: String,
+    pub version: i32,
+}
+
+impl From<&RegisteredAction> for ActionInfo {
+    fn from(ra: &RegisteredAction) -> Self {
+        ActionInfo {
+            name: ra.name.clone(),
+            version: ra.version,
+        }
+    }
+}

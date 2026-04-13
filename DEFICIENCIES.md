@@ -32,14 +32,14 @@ These areas were confirmed as matching across all implementations:
 
 ## Remaining Deficiencies
 
-### Tier 1: Blocks next milestone (multicast announcing)
+### Tier 1: ~~Blocks next milestone (multicast announcing)~~ RESOLVED
 
-| ID | Description | Confirmed by | Perl ref |
-|----|-------------|-------------|----------|
-| **D1** | No multicast announcement sending (UDP socket + periodic send) | All 4 agents | Announcer.pm:55-94 |
-| **D2** | No zlib compression of announcements | All 4 agents | Announcer.pm:203 |
-| **D3** | Config keys not read: `discovery.multicast_address`, `discovery.port`, `bus.address`, `discovery.address` | Perl, C# | Config.pm:103-112 |
-| **D4** | No V4 extension hash in announcement building (RLE-encoded action vectors appended to envelopes array) | Perl, JS | Announcer.pm:130-174, 187 |
+| ID | Description | Status |
+|----|-------------|--------|
+| **D1** | ~~No multicast announcement sending~~ | **Fixed**: UDP multicast via socket2, periodic sending |
+| **D2** | ~~No zlib compression~~ | **Fixed**: flate2 Compression::best() |
+| **D3** | ~~Config keys not read~~ | **Fixed**: `discovery.multicast_address`, `discovery.port` |
+| **D4** | ~~No V4 extension hash~~ | **Fixed**: RLE-encoded action vectors in envelopes array |
 
 ### Tier 2: Needed for production correctness
 
