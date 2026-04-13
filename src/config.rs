@@ -133,10 +133,13 @@ impl Config {
         let mut root = ConfElement::default();
 
         for line in config.lines() {
+            // Perl Config.pm:20 — strip # comments (both full-line and inline)
+            let line = match line.find('#') {
+                Some(pos) => &line[..pos],
+                None => line,
+            };
             let line = line.trim();
-            if line.is_empty() || line.starts_with('#') {
-                continue;
-            }
+            if line.is_empty() { continue; }
 
             let mut parts = line.splitn(2, '=').map(|s| s.trim());
 
@@ -245,6 +248,15 @@ mod tests {
         let mut writer = Vec::new();
         root.write_to_file(&mut writer, "").unwrap();
         assert_eq!(test_config_file, String::from_utf8_lossy(&writer));
+    }
+
+    /// Perl Config.pm:20 — inline # comments are stripped.
+    #[test]
+    fn test_inline_comments() {
+        let config = "foo.bar = hello # this is a comment\nfoo.baz = world\n";
+        let root = Config::parse_config(config, None).unwrap();
+        assert_eq!(root.get("foo.bar").unwrap().value.as_ref().unwrap(), "hello");
+        assert_eq!(root.get("foo.baz").unwrap().value.as_ref().unwrap(), "world");
     }
 
     /// Perl Config.pm:30-31 — first occurrence wins for duplicate keys.
