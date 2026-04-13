@@ -76,73 +76,32 @@ impl ListCommand {
         }
     }
     fn list_actions(&self, _config: &Config, registry: &ServiceRegistry) -> Result<()> {
-        let ListCommand::Actions {
-            sector,
-            name,
-            service,
-            all,
-            raw,
-        } = self
-        else {
-            return Err(anyhow::anyhow!("Invalid command"));
-        };
+        let ListCommand::Actions { sector, name, service, all, raw } = self
+        else { return Err(anyhow::anyhow!("Invalid command")); };
 
         let mut services = HashSet::new();
-        // normalize name into lowercase with slashes replaced with .
         let name = name.as_ref().map(|n| n.to_lowercase().replace('/', "."));
         let mut table = Table::new();
-        let mut headers = vec![TableCell::new("Name"), TableCell::new("Service")];
-        if *all {
-            headers.push(TableCell::new("Authorized"));
-        }
         if !raw {
-            table.add_row(Row::new(headers));
+            let mut h = vec![TableCell::new("Name"), TableCell::new("Service")];
+            if *all { h.push(TableCell::new("Authorized")); }
+            table.add_row(Row::new(h));
         }
-
         let mut i = 0;
-
-        // implement each filter from the clap args
         for ae in registry.actions_iter() {
-            if let Some(sector) = &sector {
-                if !ae.action.sector.contains(sector) {
-                    continue;
-                }
-            }
-            if let Some(name) = &name {
-                if !ae.action.pathver.contains(name) {
-                    continue;
-                }
-            }
-            if let Some(service) = &service {
-                if !ae.service_info.identity.starts_with(service) {
-                    continue;
-                }
-            }
-            if !all && !ae.authorized {
-                continue;
-            }
+            if sector.as_ref().map_or(false, |s| !ae.action.sector.contains(s)) { continue; }
+            if name.as_ref().map_or(false, |n| !ae.action.pathver.contains(n)) { continue; }
+            if service.as_ref().map_or(false, |s| !ae.service_info.identity.starts_with(s)) { continue; }
+            if !all && !ae.authorized { continue; }
             i += 1;
             services.insert(ae.service_info.identity.clone());
-
             if *raw {
-                // just include all fields in a single println - tab delimited
-                println!(
-                    "{}\t{}\t{}\t{}",
-                    ae.action.sector, ae.action.pathver, ae.service_info.identity, ae.authorized,
-                );
+                println!("{}\t{}\t{}\t{}", ae.action.sector, ae.action.pathver, ae.service_info.identity, ae.authorized);
             } else {
-                let mut row = vec![
-                    TableCell::new(ae.action.sector.clone()),
-                    TableCell::new(ae.action.pathver.clone()),
-                    TableCell::new(ae.service_info.identity.clone()),
-                ];
-                if *all {
-                    row.push(TableCell::new(ae.authorized.to_string()));
-                }
-                let mut row = Row::new(row);
-                if i > 1 {
-                    row.has_separator = false;
-                }
+                let mut r = vec![TableCell::new(ae.action.sector.clone()), TableCell::new(ae.action.pathver.clone()), TableCell::new(ae.service_info.identity.clone())];
+                if *all { r.push(TableCell::new(ae.authorized.to_string())); }
+                let mut row = Row::new(r);
+                if i > 1 { row.has_separator = false; }
                 table.add_row(row);
             }
         }
@@ -153,105 +112,44 @@ impl ListCommand {
         Ok(())
     }
     fn list_services(&self, _config: &Config, registry: &ServiceRegistry) -> Result<()> {
-        let ListCommand::Services {
-            with_action,
-            all,
-            uri,
-            name,
-            raw,
-            sector,
-        } = self
-        else {
-            return Err(anyhow::anyhow!("Invalid command"));
-        };
+        let ListCommand::Services { with_action, all, uri, name, raw, sector } = self
+        else { return Err(anyhow::anyhow!("Invalid command")); };
 
         let mut actions = 0usize;
         let mut table = Table::new();
-        let mut headers = vec![
-            TableCell::new("Service"),
-            TableCell::new("Uri"),
-            TableCell::new("Sectors"),
-            TableCell::new("Actions"),
-        ];
-        if *all {
-            headers.push(TableCell::new("Authorized"));
-        }
         if !raw {
-            table.add_row(Row::new(headers));
+            let mut h = vec![TableCell::new("Service"), TableCell::new("Uri"), TableCell::new("Sectors"), TableCell::new("Actions")];
+            if *all { h.push(TableCell::new("Authorized")); }
+            table.add_row(Row::new(h));
         }
-
         let mut i = 0;
-        let mut unique_services = std::collections::HashMap::new();
+        let mut unique: std::collections::HashMap<String, (String, HashSet<String>, u32, bool)> = std::collections::HashMap::new();
 
         for ae in registry.actions_iter() {
-            if let Some(sector) = &sector {
-                if !ae.action.sector.contains(sector) {
-                    continue;
-                }
-            }
-            if let Some(with_action) = &with_action {
-                if !ae.action.pathver.contains(with_action) {
-                    continue;
-                }
-            }
-            if let Some(uri) = &uri {
-                if !ae.service_info.uri.contains(uri) {
-                    continue;
-                }
-            }
-            if let Some(name) = &name {
-                if !ae.service_info.identity.starts_with(name) {
-                    continue;
-                }
-            }
-            if !all && !ae.authorized {
-                continue;
-            }
+            if sector.as_ref().map_or(false, |s| !ae.action.sector.contains(s)) { continue; }
+            if with_action.as_ref().map_or(false, |a| !ae.action.pathver.contains(a)) { continue; }
+            if uri.as_ref().map_or(false, |u| !ae.service_info.uri.contains(u)) { continue; }
+            if name.as_ref().map_or(false, |n| !ae.service_info.identity.starts_with(n)) { continue; }
+            if !all && !ae.authorized { continue; }
             actions += 1;
-
-            let service_identity = ae.service_info.identity.clone();
-            unique_services
-                .entry(service_identity)
-                .or_insert_with(|| {
-                    (
-                        ae.service_info.uri.clone(),
-                        HashSet::new(),
-                        0,
-                        ae.authorized,
-                    )
-                })
-                .1
-                .insert(ae.action.sector.clone());
-            unique_services
-                .get_mut(&ae.service_info.identity)
-                .unwrap()
-                .2 += 1;
+            let e = unique.entry(ae.service_info.identity.clone())
+                .or_insert_with(|| (ae.service_info.uri.clone(), HashSet::new(), 0, ae.authorized));
+            e.1.insert(ae.action.sector.clone());
+            e.2 += 1;
         }
-
-        for (service_identity, (uri, sectors, action_count, authorized)) in unique_services {
+        for (svc, (uri, sectors, count, auth)) in unique {
             i += 1;
-
+            let sec = sectors.into_iter().collect::<Vec<_>>().join(",");
             if *raw {
-                println!(
-                    "{service_identity}\t{uri}\t{}\t{action_count}\t{authorized}",
-                    sectors.into_iter().collect::<Vec<_>>().join(","),
-                );
+                println!("{svc}\t{uri}\t{sec}\t{count}\t{auth}");
             } else {
-                let mut row = vec![
-                    TableCell::new(service_identity),
-                    TableCell::new(uri),
-                    TableCell::new(sectors.into_iter().collect::<Vec<_>>().join(",")),
-                    TableCell::new(action_count.to_string()),
-                ];
-                row.push(TableCell::new(authorized.to_string()));
-                let mut row = Row::new(row);
-                if i > 1 {
-                    row.has_separator = false;
-                }
+                let mut r = vec![TableCell::new(svc), TableCell::new(uri), TableCell::new(sec), TableCell::new(count.to_string())];
+                r.push(TableCell::new(auth.to_string()));
+                let mut row = Row::new(r);
+                if i > 1 { row.has_separator = false; }
                 table.add_row(row);
             }
         }
-
         if !raw {
             print!("{}", table.render());
             println!("{i} services found with {} actions", actions);
