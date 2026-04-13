@@ -77,16 +77,17 @@ Previous session fixes:
 | **Perl Requester->simple_request → Rust (via discovery)** | **✓ full pipeline** |
 | lssoa shows Rust service | ✓ correct identity, sector, weight, fingerprint, actions |
 
-### Next Work: M8 — Discovery Hardening
+### All Milestones Complete (M1-M9)
 
-**3 remaining items** (see DEFICIENCIES.md):
+**All 46 deficiency items resolved.** See DEFICIENCIES.md for full history.
 
-**M8 — Discovery Hardening:**
-- D24: Multicast receiver/observer (receive announcements from other services)
-- D25: Cache refresh/reload mechanism (re-read cache file on change)
+80 tests (5 ignored for dev environment). All passing.
 
-**Test quality:**
-- T8: Shared test helpers for common patterns (low priority)
+Potential future work (not tracked as deficiencies):
+- Server-side flow control watermark (client-side done, server less critical)
+- Connection reconnection with backoff
+- Typed error enum (ScampError) instead of anyhow
+- Full privilege checking via Auth.getAuthzTable service call
 - T2: Client request sending tests
 - T4: authorized_services tests through load()
 - T10: RLE decode edge cases

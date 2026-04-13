@@ -102,18 +102,10 @@ Confirmed matching across all implementations:
 | T4 | make_auth() duplicates production logic | Fixed: extracted parse_content(), shared by reload and tests |
 | T6 | test_fingerprint_of_dev_cert silently passes | Fixed: now #[ignore] with panic on missing cert |
 | T10 | No RLE decode edge cases | Fixed: 6 tests for unrle edge cases |
+| D24 | No multicast receiver/observer | Fixed: observer.rs — joins group, decompresses, injects |
+| D25 | No cache refresh/reload | Fixed: inject_packet + reload_from_cache on ServiceRegistry |
+| T8 | No shared test helpers | Fixed: test_helpers.rs with echo_actions, write_request, etc. |
 
-## Remaining Deficiencies
+## All 46 Deficiencies Resolved
 
-### Remaining Discovery
-
-| ID | Description | Ref |
-|----|-------------|-----|
-| **D24** | No multicast receiver/observer | Observer.pm |
-| **D25** | No cache refresh/reload mechanism (registry is static) | ServiceManager.pm:68-72 |
-
-### Remaining Test Coverage
-
-| ID | Description | Impact |
-|----|-------------|--------|
-| **T8** | No shared test helpers for common patterns | Low |
+No remaining items. See resolved table above for full history.
