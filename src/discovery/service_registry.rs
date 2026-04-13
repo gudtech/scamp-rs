@@ -93,6 +93,20 @@ impl ServiceRegistry {
 
             let fingerprint = body.info.fingerprint.as_deref().unwrap_or("");
 
+            // D8: Announcement TTL/expiry — Perl ServiceManager.pm:38
+            // expires = timestamp + send_interval_secs * 2.1
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs_f64();
+            let interval_secs = body.params.interval as f64 / 1000.0;
+            let expires = body.params.timestamp + interval_secs * 2.1;
+            if now > expires {
+                log::debug!("Skipping expired announcement for {} (expired {:.0}s ago)",
+                    body.info.identity, now - expires);
+                continue;
+            }
+
             // D26: Service deduplication by fingerprint+identity
             // D9: Timestamp replay protection — reject older timestamps
             // Perl ServiceManager.pm:29-35
