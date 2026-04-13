@@ -194,7 +194,7 @@ impl ScampService {
                         match tls_acceptor.accept(stream).await {
                             Ok(tls_stream) => {
                                 log::debug!("Accepted connection from {}", peer_addr);
-                                server_connection::handle_connection(tls_stream, actions).await;
+                                server_connection::handle_connection(tls_stream, actions, None).await;
                             }
                             Err(e) => {
                                 log::error!("TLS accept failed from {}: {}", peer_addr, e);

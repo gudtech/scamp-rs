@@ -281,7 +281,7 @@ mod tests {
         let (client_stream, server_stream) = tokio::io::duplex(65536);
         let actions = echo_actions();
         let _server = tokio::spawn(
-            server_connection::handle_connection(server_stream, actions),
+            server_connection::handle_connection(server_stream, actions, None),
         );
 
         let conn = ConnectionHandle::from_stream(client_stream);
@@ -303,7 +303,7 @@ mod tests {
     async fn test_client_unknown_action_error() {
         let (client_stream, server_stream) = tokio::io::duplex(65536);
         let _server = tokio::spawn(
-            server_connection::handle_connection(server_stream, echo_actions()),
+            server_connection::handle_connection(server_stream, echo_actions(), None),
         );
 
         let conn = ConnectionHandle::from_stream(client_stream);
@@ -323,7 +323,7 @@ mod tests {
     async fn test_client_large_body() {
         let (client_stream, server_stream) = tokio::io::duplex(65536);
         let _server = tokio::spawn(
-            server_connection::handle_connection(server_stream, echo_actions()),
+            server_connection::handle_connection(server_stream, echo_actions(), None),
         );
 
         let body = vec![0xABu8; 5000];

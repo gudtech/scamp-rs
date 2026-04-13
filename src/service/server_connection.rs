@@ -8,6 +8,7 @@ use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader
 use tokio::sync::Mutex;
 
 use super::handler::{RegisteredAction, ScampReply, ScampRequest};
+use crate::auth::authz::AuthzChecker;
 use crate::transport::beepish::proto::{
     EnvelopeFormat, FlexInt, MessageType, Packet, PacketHeader, PacketType, ParseResult,
     DATA_CHUNK_SIZE,
@@ -34,6 +35,7 @@ struct OutgoingReplyState { sent: u64, acknowledged: u64 }
 pub(crate) async fn handle_connection(
     stream: impl AsyncRead + AsyncWrite + Unpin + Send + 'static,
     actions: Arc<HashMap<String, RegisteredAction>>,
+    authz: Option<Arc<AuthzChecker>>,
 ) {
     let (reader, writer) = tokio::io::split(stream);
     let writer: ServerWriter = Arc::new(Mutex::new(Box::new(writer)));
@@ -90,6 +92,7 @@ pub(crate) async fn handle_connection(
                         &next_outgoing_msg_no,
                         &writer,
                         &actions,
+                        &authz,
                     )
                     .await;
                 }
@@ -111,6 +114,7 @@ async fn route_packet(
     next_outgoing_msg_no: &AtomicU64,
     writer: &ServerWriter,
     actions: &Arc<HashMap<String, RegisteredAction>>,
+    authz: &Option<Arc<AuthzChecker>>,
 ) {
     match packet.packet_type {
         PacketType::Header => {
@@ -154,7 +158,8 @@ async fn route_packet(
         }
         PacketType::Eof => {
             if let Some(msg) = incoming.remove(&packet.msg_no) {
-                dispatch_and_reply(msg, next_outgoing_msg_no, outgoing, writer, actions).await;
+                dispatch_and_reply(msg, next_outgoing_msg_no, outgoing, writer, actions, authz)
+                    .await;
             }
         }
         PacketType::Txerr => {
@@ -217,6 +222,7 @@ async fn dispatch_and_reply(
     outgoing: &mut HashMap<u64, OutgoingReplyState>,
     writer: &ServerWriter,
     actions: &Arc<HashMap<String, RegisteredAction>>,
+    authz: &Option<Arc<AuthzChecker>>,
 ) {
     let request_id = msg.header.request_id;
     let action_key = format!(
@@ -224,6 +230,22 @@ async fn dispatch_and_reply(
         msg.header.action.to_lowercase(),
         msg.header.version
     );
+
+    // C1: Check ticket privileges before dispatch — JS ticket.js:71-93
+    // Skip for actions with "noauth" flag, or if no AuthzChecker configured.
+    let noauth = actions.get(&action_key)
+        .map(|a| a.flags.iter().any(|f| f == "noauth"))
+        .unwrap_or(false);
+    if let Some(checker) = authz {
+        if !noauth && !msg.header.ticket.is_empty() {
+            if let Err(e) = checker.check_access(&msg.header.action, &msg.header.ticket).await {
+                log::warn!("Authorization denied for {}: {}", action_key, e);
+                let reply = ScampReply::error(e.to_string(), "unauthorized".to_string());
+                send_reply(reply, request_id, next_outgoing_msg_no, outgoing, writer).await;
+                return;
+            }
+        }
+    }
 
     let request = ScampRequest {
         action: msg.header.action,
@@ -245,6 +267,16 @@ async fn dispatch_and_reply(
         )
     };
 
+    send_reply(reply, request_id, next_outgoing_msg_no, outgoing, writer).await;
+}
+
+async fn send_reply(
+    reply: ScampReply,
+    request_id: FlexInt,
+    next_outgoing_msg_no: &AtomicU64,
+    outgoing: &mut HashMap<u64, OutgoingReplyState>,
+    writer: &ServerWriter,
+) {
     let reply_msg_no = next_outgoing_msg_no.fetch_add(1, Ordering::Relaxed);
     let reply_header = PacketHeader {
         action: String::new(),
@@ -260,15 +292,12 @@ async fn dispatch_and_reply(
         version: 0,
     };
 
-    // Track outgoing bytes for ACK validation (D5)
     outgoing.insert(reply_msg_no, OutgoingReplyState::default());
 
     let mut w = writer.lock().await;
     let header_pkt = Packet {
-        packet_type: PacketType::Header,
-        msg_no: reply_msg_no,
-        packet_header: Some(reply_header),
-        body: vec![],
+        packet_type: PacketType::Header, msg_no: reply_msg_no,
+        packet_header: Some(reply_header), body: vec![],
     };
     if let Err(e) = header_pkt.write(&mut *w).await {
         log::error!("Failed to write reply HEADER: {}", e);
@@ -281,34 +310,26 @@ async fn dispatch_and_reply(
         let end = (offset + DATA_CHUNK_SIZE).min(reply.body.len());
         let chunk_len = (end - offset) as u64;
         let data_pkt = Packet {
-            packet_type: PacketType::Data,
-            msg_no: reply_msg_no,
-            packet_header: None,
-            body: reply.body[offset..end].to_vec(),
+            packet_type: PacketType::Data, msg_no: reply_msg_no,
+            packet_header: None, body: reply.body[offset..end].to_vec(),
         };
         if let Err(e) = data_pkt.write(&mut *w).await {
             log::error!("Failed to write reply DATA: {}", e);
             outgoing.remove(&reply_msg_no);
             return;
         }
-        if let Some(state) = outgoing.get_mut(&reply_msg_no) {
-            state.sent += chunk_len;
-        }
+        if let Some(state) = outgoing.get_mut(&reply_msg_no) { state.sent += chunk_len; }
         offset = end;
     }
 
     let eof_pkt = Packet {
-        packet_type: PacketType::Eof,
-        msg_no: reply_msg_no,
-        packet_header: None,
-        body: vec![],
+        packet_type: PacketType::Eof, msg_no: reply_msg_no,
+        packet_header: None, body: vec![],
     };
     if let Err(e) = eof_pkt.write(&mut *w).await {
         log::error!("Failed to write reply EOF: {}", e);
     }
-    if let Err(e) = w.flush().await {
-        log::error!("Reply flush failed: {}", e);
-    }
+    if let Err(e) = w.flush().await { log::error!("Reply flush failed: {}", e); }
 
     outgoing.remove(&reply_msg_no);
 }
@@ -327,7 +348,7 @@ mod tests {
         body: &[u8],
     ) -> Vec<Packet> {
         let (client, server) = tokio::io::duplex(65536);
-        let server_handle = tokio::spawn(handle_connection(server, actions));
+        let server_handle = tokio::spawn(handle_connection(server, actions, None));
         let (mut client_read, mut client_write) = tokio::io::split(client);
 
         write_request(&mut client_write, 0, action, version, 1, body).await;
@@ -398,7 +419,7 @@ mod tests {
     #[tokio::test]
     async fn test_ping_pong() {
         let (client, server) = tokio::io::duplex(65536);
-        let server_handle = tokio::spawn(handle_connection(server, echo_actions()));
+        let server_handle = tokio::spawn(handle_connection(server, echo_actions(), None));
         let (mut client_read, mut client_write) = tokio::io::split(client);
 
         Packet {
