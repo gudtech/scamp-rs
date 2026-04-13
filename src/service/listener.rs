@@ -21,6 +21,9 @@ use crate::transport::beepish::proto::{
     DATA_CHUNK_SIZE,
 };
 
+/// Server connection idle timeout — Perl Server.pm:58, Connection.pm:131-135
+const DEFAULT_SERVER_TIMEOUT_SECS: u64 = 120;
+
 /// SCAMP service that listens for incoming connections and dispatches requests.
 pub struct ScampService {
     name: String,
@@ -220,12 +223,27 @@ async fn handle_connection(
     let next_outgoing_msg_no = AtomicU64::new(0);
 
     loop {
-        let buf = match reader.fill_buf().await {
-            Ok(buf) if buf.is_empty() => break,
-            Ok(buf) => buf,
-            Err(e) => {
-                log::debug!("Read error: {}", e);
-                break;
+        // Perl Connection.pm:131-135 — _adj_timeout: no timeout when busy,
+        // configured timeout when idle. Server default: 120s.
+        let is_busy = !incoming.is_empty() || !outgoing.is_empty();
+        let buf = if is_busy {
+            // Active messages in-flight — no idle timeout
+            match reader.fill_buf().await {
+                Ok(buf) if buf.is_empty() => break,
+                Ok(buf) => buf,
+                Err(e) => { log::debug!("Read error: {}", e); break; }
+            }
+        } else {
+            // Idle — apply server timeout (D6)
+            let idle_timeout = std::time::Duration::from_secs(DEFAULT_SERVER_TIMEOUT_SECS);
+            match tokio::time::timeout(idle_timeout, reader.fill_buf()).await {
+                Ok(Ok(buf)) if buf.is_empty() => break,
+                Ok(Ok(buf)) => buf,
+                Ok(Err(e)) => { log::debug!("Read error: {}", e); break; }
+                Err(_) => {
+                    log::debug!("Idle timeout ({}s)", idle_timeout.as_secs());
+                    break;
+                }
             }
         };
 
