@@ -32,7 +32,7 @@ identically to the Perl implementation?" When in doubt, match Perl exactly.
 ## Key Files to Read First
 
 - `PUNCHLIST.md` — milestone-structured todo list with verification tests
-- `DEFICIENCIES.md` — remaining gaps from the latest 6-agent audit
+- `DEFICIENCIES.md` — 16 remaining gaps (30 resolved) from 6-agent audit
 - `CODING_STANDARDS.md` — 300-line file limit, no split impl blocks, test organization
 
 ## Current State (as of 2026-04-13)
@@ -44,9 +44,20 @@ identically to the Perl implementation?" When in doubt, match Perl exactly.
 **M3: Authorized Services Filtering** ✓
 **M4: Multicast Announcing** ✓
 **M5: Full Bidirectional Interop** ✓
+**M6: Wire Protocol Hardening** ✓ (mostly — watermark pause/resume remains)
+**M7: Config & Behavioral Parity** ✓ (mostly — bus_info/interface resolution remains)
 
-Key fix: Perl sends `"ticket": null` in JSON headers. Our `String` deserializer
-couldn't handle null, causing silent HEADER drops. Fixed with `nullable_string`.
+Key fixes this session:
+- `ticket: null` → `nullable_string` deserializer (was causing silent HEADER drops)
+- Config first-wins, inline `#` comments, GTSOA env var
+- `\r\n` required in header parsing (was accepting bare `\n`)
+- ACK validation (format, monotonic, not-past-end)
+- Server idle timeout 120s
+- DATA chunk 2048 (was 131072)
+- Always serialize action/ticket/identifying_token
+- Timestamp replay protection + service deduplication
+- Announcement TTL/expiry + cache staleness check
+- Wire protocol test fixtures from Perl (12 new tests, 55 total)
 
 ### Verified Interop (Docker on gtnet)
 
@@ -61,28 +72,32 @@ couldn't handle null, causing silent HEADER drops. Fixed with `nullable_string`.
 | **Perl Requester->simple_request → Rust (via discovery)** | **✓ full pipeline** |
 | lssoa shows Rust service | ✓ correct identity, sector, weight, fingerprint, actions |
 
-### Next Milestone: M6 — Wire Protocol Hardening + Test Infrastructure
+### Next Work: M8/M9 — Discovery + Production Hardening
 
-**Goal**: Wire protocol matches Perl exactly, backed by captured test vectors.
+**16 remaining items** (see DEFICIENCIES.md). Mostly larger features:
 
-Priority items:
-1. Capture wire packets from Perl as test fixtures
-2. Server hot path tests (handle_connection, route_packet, dispatch_and_reply)
-3. Shared test helpers (packet builders, default headers)
-4. Require `\r\n` in header parsing (D16)
-5. Send-side flow control — validate ACKs, pause at 65536 (D5)
-6. TXERR body validation (D27)
-7. Connection idle timeout + busy flag (D6)
+**M8 — Discovery Hardening:**
+- D24: Multicast receiver/observer
+- D25: Cache refresh/reload mechanism
 
-### Remaining Deficiencies (from 6-agent audit)
+**M9 — Production Hardening:**
+- D10: Graceful shutdown (drain active requests)
+- D11: Ticket verification
+- D22: `bus_info()` interface resolution (`if:ethN`)
+- D23: Bind to `service.address` interface
+- D28: High-level Requester API
+- D29: Announceable flag filtering
+- D31/D32: Failure tracking, retry
 
-See DEFICIENCIES.md for full details. Summary:
-- **Code quality**: 5 items (Q1-Q5), Q1-Q4 fixed
-- **Wire protocol**: 6 items (D5, D6, D12, D16, D27, D30)
-- **Discovery**: 6 items (D7-D9, D24-D26)
-- **Service lifecycle**: 5 items (D10, D11, D17, D18, D29)
-- **Config**: 7 items (D15, D19-D23, D28)
-- **Test coverage**: 10 items (T1-T10), T5/T7/T9 fixed
+**Remaining wire items:**
+- D5b: Send-side flow control watermark pause/resume (ACK validation done)
+- Q5: listener.rs (390 lines) exceeds 300-line limit
+
+**Remaining test items:**
+- T1: Server hot path tests
+- T2: Client request sending tests
+- T4: authorized_services tests through load()
+- T10: RLE decode edge cases
 
 ## Dev Environment
 
@@ -92,16 +107,17 @@ See DEFICIENCIES.md for full details. Summary:
   - Fingerprint: `BC:6E:86:C2:46:44:F7:DC:7F:1D:17:89:D1:9A:E5:09:E4:08:8B:B0`
 - Build for Docker: `docker build --platform linux/amd64 -f Dockerfile.interop-test -t scamp-rs-test .`
 - Run on gtnet: `docker run --rm --network gtnet -v ~/GT/backplane:/backplane:ro -v ~/GT/backplane/etc:/etc/GT:ro -e SCAMP_CONFIG=/backplane/etc/soa.conf scamp-rs-test [subcommand]`
+- Test with soatest: `docker exec main perl /service/main/gt-soa/perl/script/soatest --action "ScampRsTest.echo~1" --data '{"test":"hello"}' -p`
 
 ## Audit Protocol
 
-After each milestone, dispatch verification agents:
+After each milestone, dispatch 6 verification agents:
 
 ```
-Agent(name="verify-vs-perl", prompt="...")
-Agent(name="verify-vs-js", prompt="...")
-Agent(name="verify-vs-go", prompt="...")
-Agent(name="verify-vs-csharp", prompt="...")
-Agent(name="review-tests", prompt="...")
-Agent(name="review-code", prompt="...")
+Agent(name="verify-vs-perl", prompt="Read ALL Rust src and ALL Perl GTSOA files. Compare function-by-function. Report MATCH/PARTIAL/MISSING/DIVERGENT.")
+Agent(name="verify-vs-js", prompt="Read ALL Rust src and ALL scamp-js files. Compare. Report.")
+Agent(name="verify-vs-go", prompt="Read ALL Rust src and ALL scamp-go files. Compare. Report.")
+Agent(name="verify-vs-csharp", prompt="Read ALL Rust src and ALL gt-soa/csharp files. Compare. Report.")
+Agent(name="review-tests", prompt="Evaluate test coverage, quality, fixtures, structure. Top 10 tests to add.")
+Agent(name="review-code", prompt="Review correctness, elegance, coding standards, wire safety.")
 ```
