@@ -58,8 +58,29 @@ impl Requester {
     }
 
     /// Send a request with full control over parameters.
+    /// D31: Retries once on dispatch_failure with a different service instance.
     pub async fn request_with_opts(&self, opts: RequestOpts<'_>) -> Result<ScampResponse> {
-        // 1. Lookup action in registry
+        let resp = self.dispatch_once(&opts).await?;
+
+        // D31: If dispatch_failure, mark service failed and retry once
+        // JS requester.js:50-58
+        if resp.header.error_code.as_deref() == Some("dispatch_failure") {
+            if let Some(entry) = self.registry.find_action_with_envelope(
+                opts.sector,
+                opts.action,
+                opts.version,
+                &envelope_str(&opts.envelope),
+            ) {
+                self.registry.mark_failed(&entry.service_info.identity);
+            }
+            log::debug!("dispatch_failure, retrying with different service");
+            return self.dispatch_once(&opts).await;
+        }
+
+        Ok(resp)
+    }
+
+    async fn dispatch_once(&self, opts: &RequestOpts<'_>) -> Result<ScampResponse> {
         let entry = self
             .registry
             .find_action_with_envelope(
@@ -77,13 +98,11 @@ impl Requester {
                 )
             })?;
 
-        // 2. Resolve timeout: explicit > per-action flag > default
         let timeout_secs = opts
             .timeout_secs
             .or_else(|| entry.timeout_secs())
             .unwrap_or(DEFAULT_RPC_TIMEOUT_SECS);
 
-        // 3. Connect (pooled) and send request
         let resp = self
             .client
             .request(
@@ -93,12 +112,11 @@ impl Requester {
                 opts.envelope.clone(),
                 opts.ticket,
                 0,
-                opts.body,
+                opts.body.clone(),
                 Some(timeout_secs),
             )
             .await?;
 
-        // 4. Check for transport-level error
         if let Some(err) = &resp.error {
             return Err(anyhow!("Transport error: {}", err));
         }

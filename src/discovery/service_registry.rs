@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 use std::fs::File;
+use std::sync::Mutex;
 
 use anyhow::Result;
 
@@ -43,12 +44,20 @@ fn make_crud_alias_key(sector: &str, namespace: &str, tag: &str, version: u32) -
     format!("{}:{}._{}.v{}", sector, namespace, tag, version).to_lowercase()
 }
 
+/// D31/D32: Tracks failure state for a service — JS serviceMgr.js:43-52.
+struct ServiceFailureState {
+    /// Unix timestamps (secs) of recent failures (pruned to 24h window)
+    failure_times: Vec<u64>,
+    /// Don't route to this service until this time
+    reactivate_at: u64,
+}
+
 pub struct ServiceRegistry {
-    /// Primary index: sector:action.vVERSION → Vec<ActionEntry>
     actions_by_key: BTreeMap<String, Vec<ActionEntry>>,
-    /// Track latest timestamp per service identity for replay protection (D9).
-    /// Key: `fingerprint identity` — Perl ServiceManager.pm:29
+    /// Replay protection: key = `fingerprint identity` — Perl ServiceManager.pm:29
     seen_timestamps: HashMap<String, f64>,
+    /// D31/D32: Failure state per service identity (interior mutability).
+    failures: Mutex<HashMap<String, ServiceFailureState>>,
 }
 
 impl ServiceRegistry {
@@ -56,13 +65,11 @@ impl ServiceRegistry {
         let mut actions_by_key: BTreeMap<String, Vec<ActionEntry>> = BTreeMap::new();
         let mut seen_timestamps: HashMap<String, f64> = HashMap::new();
 
-        let cache_path: String = match config.get("discovery.cache_path") {
-            Some(Ok(path)) => path,
-            Some(Err(e)) => return Err(anyhow::anyhow!("Failed to get cache path: {}", e)),
-            None => return Err(anyhow::anyhow!("No cache path found")),
-        };
+        let cache_path: String = config
+            .get("discovery.cache_path")
+            .ok_or_else(|| anyhow::anyhow!("No cache path found"))?
+            .map_err(|e| anyhow::anyhow!("Failed to get cache path: {}", e))?;
 
-        // Load authorized_services (Perl ServiceInfo.pm:112-113)
         let auth = match config.get::<String>("bus.authorized_services") {
             Some(Ok(path)) => match AuthorizedServices::load(&path) {
                 Ok(a) => a,
@@ -81,8 +88,7 @@ impl ServiceRegistry {
             anyhow::anyhow!("Failed to open discovery cache file {}, {}", cache_path, e)
         })?;
 
-        // D7: Cache staleness check — Perl ServiceManager.pm:83-88
-        let cache_max_age: u64 = config
+        let cache_max_age: u64 = config // D7: Perl ServiceManager.pm:83-88
             .get::<u64>("discovery.cache_max_age")
             .and_then(|r| r.ok())
             .unwrap_or(120);
@@ -110,23 +116,15 @@ impl ServiceRegistry {
 
             let fingerprint = body.info.fingerprint.as_deref().unwrap_or("");
 
-            // D8: Announcement TTL/expiry — Perl ServiceManager.pm:38
-            // expires = timestamp + send_interval_secs * 2.1
-            let now = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs_f64();
+            // D8: TTL/expiry — Perl ServiceManager.pm:38
+            let now_f = now_secs() as f64;
             let interval_secs = body.params.interval as f64 / 1000.0;
-            let expires = body.params.timestamp + interval_secs * 2.1;
-            if now > expires {
-                log::debug!("Skipping expired announcement for {} (expired {:.0}s ago)",
-                    body.info.identity, now - expires);
+            if now_f > body.params.timestamp + interval_secs * 2.1 {
+                log::debug!("Skipping expired announcement for {}", body.info.identity);
                 continue;
             }
 
-            // D26: Service deduplication by fingerprint+identity
-            // D9: Timestamp replay protection — reject older timestamps
-            // Perl ServiceManager.pm:29-35
+            // D9/D26: Replay protection + dedup — Perl ServiceManager.pm:29-35
             let dedup_key = format!("{} {}", fingerprint, body.info.identity);
             let timestamp = body.params.timestamp;
             if let Some(&prev_ts) = seen_timestamps.get(&dedup_key) {
@@ -145,30 +143,18 @@ impl ServiceRegistry {
             seen_timestamps.insert(dedup_key, timestamp);
 
             for action in &body.actions {
-                // Check authorization (Perl ServiceInfo.pm:141-167)
-                let authorized = auth.is_authorized(
-                    fingerprint,
-                    &action.sector,
-                    &action.path,
-                );
-
+                let authorized = auth.is_authorized(fingerprint, &action.sector, &action.path);
                 let entry = ActionEntry {
                     service_info: body.info.clone(),
                     announcement_params: body.params.clone(),
                     action: action.clone(),
                     authorized,
                 };
-
-                // Primary key: sector:action.vVERSION
                 let key = make_index_key(&action.sector, &action.path, action.version);
                 actions_by_key.entry(key).or_default().push(entry);
 
-                // CRUD tag aliases (Perl ServiceInfo.pm:191-192, JS serviceMgr.js:223-225)
-                let namespace = action
-                    .path
-                    .rsplit_once('.')
-                    .map(|(ns, _)| ns)
-                    .unwrap_or(&action.path);
+                // CRUD aliases — Perl ServiceInfo.pm:191-192
+                let namespace = action.path.rsplit_once('.').map(|(ns, _)| ns).unwrap_or(&action.path);
                 for flag in &action.flags {
                     if let Flag::CrudOp(op) = flag {
                         let tag = match op {
@@ -191,13 +177,18 @@ impl ServiceRegistry {
             }
         }
 
-        Ok(Self { actions_by_key, seen_timestamps })
+        Ok(Self {
+            actions_by_key,
+            seen_timestamps,
+            failures: Mutex::new(HashMap::new()),
+        })
     }
 
     pub fn empty() -> Self {
         Self {
             actions_by_key: BTreeMap::new(),
             seen_timestamps: HashMap::new(),
+            failures: Mutex::new(HashMap::new()),
         }
     }
 
@@ -218,62 +209,62 @@ impl ServiceRegistry {
 
     /// Find a random action entry matching the key.
     /// Excludes weight=0 services and unauthorized actions.
+    /// D31/D32: Prefers healthy services over failed ones (JS serviceMgr.js:253-260).
     pub fn get_action(&self, key: &str) -> Option<&ActionEntry> {
-        self.actions_by_key
-            .get(&key.to_lowercase())
-            .and_then(|entries| {
-                let active: Vec<_> = entries
-                    .iter()
-                    .filter(|e| e.announcement_params.weight > 0 && e.authorized)
-                    .collect();
-                if active.is_empty() {
-                    None
-                } else {
-                    let random_index = rand::random::<usize>() % active.len();
-                    Some(active[random_index])
-                }
-            })
+        let entries = self.actions_by_key.get(&key.to_lowercase())?;
+        let candidates: Vec<_> = entries
+            .iter()
+            .filter(|e| e.announcement_params.weight > 0 && e.authorized)
+            .collect();
+        self.pick_healthy(&candidates)
     }
 
-    /// Convenience: find action by sector, action name, and version.
-    pub fn find_action(
-        &self,
-        sector: &str,
-        action: &str,
-        version: u32,
-    ) -> Option<&ActionEntry> {
-        let key = make_index_key(sector, action, version);
-        self.get_action(&key)
+    /// Mark a service as failed — D31/D32, JS serviceMgr.js:43-52.
+    /// Exponential backoff: min(failure_count, 60) minutes.
+    pub fn mark_failed(&self, identity: &str) {
+        let now = now_secs();
+        let mut failures = self.failures.lock().unwrap();
+        let state = failures.entry(identity.to_string()).or_insert_with(|| {
+            ServiceFailureState { failure_times: Vec::new(), reactivate_at: 0 }
+        });
+        state.failure_times.retain(|&t| t >= now.saturating_sub(86400));
+        state.failure_times.push(now);
+        let minutes = state.failure_times.len().min(60) as u64;
+        state.reactivate_at = now + minutes * 60;
     }
 
-    /// Convenience: find action by sector, action name, version, filtering by envelope.
-    /// Matches Perl ServiceInfo.pm:254: grep { $_ eq $envelope } @{$blk->[4]}
+    pub fn find_action(&self, sector: &str, action: &str, version: u32) -> Option<&ActionEntry> {
+        self.get_action(&make_index_key(sector, action, version))
+    }
+
+    /// Find action by sector, name, version, envelope.
+    /// Perl ServiceInfo.pm:254. D31/D32: Prefers healthy services.
     pub fn find_action_with_envelope(
-        &self,
-        sector: &str,
-        action: &str,
-        version: u32,
-        envelope: &str,
+        &self, sector: &str, action: &str, version: u32, envelope: &str,
     ) -> Option<&ActionEntry> {
-        let key = make_index_key(sector, action, version);
-        self.actions_by_key
-            .get(&key.to_lowercase())
-            .and_then(|entries| {
-                let matching: Vec<_> = entries
-                    .iter()
-                    .filter(|e| {
-                        e.announcement_params.weight > 0
-                            && e.authorized
-                            && e.action.envelopes.iter().any(|env| env == envelope)
-                    })
-                    .collect();
-                if matching.is_empty() {
-                    None
-                } else {
-                    let random_index = rand::random::<usize>() % matching.len();
-                    Some(matching[random_index])
-                }
+        let entries = self.actions_by_key.get(&make_index_key(sector, action, version).to_lowercase())?;
+        let candidates: Vec<_> = entries
+            .iter()
+            .filter(|e| {
+                e.announcement_params.weight > 0
+                    && e.authorized
+                    && e.action.envelopes.iter().any(|env| env == envelope)
             })
+            .collect();
+        self.pick_healthy(&candidates)
+    }
+
+    /// Select a random entry, preferring healthy over failed services.
+    fn pick_healthy<'a>(&self, candidates: &[&'a ActionEntry]) -> Option<&'a ActionEntry> {
+        if candidates.is_empty() { return None; }
+        let now = now_secs();
+        let failures = self.failures.lock().unwrap();
+        let (healthy, failing): (Vec<_>, Vec<_>) = candidates
+            .iter()
+            .partition(|e| !is_failed(&failures, &e.service_info.identity, now));
+        drop(failures);
+        let pool = if healthy.is_empty() { &failing } else { &healthy };
+        if pool.is_empty() { None } else { Some(pool[rand::random::<usize>() % pool.len()]) }
     }
 
     /// Get the old-style pathver key (action~version) for backward compat with CLI.
@@ -284,4 +275,22 @@ impl ServiceRegistry {
         let version: u32 = version_str.parse().unwrap_or(1);
         self.find_action(sector, action, version)
     }
+}
+
+fn now_secs() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs()
+}
+
+/// Check if a service is currently marked as failed.
+fn is_failed(
+    failures: &HashMap<String, ServiceFailureState>,
+    identity: &str,
+    now: u64,
+) -> bool {
+    failures
+        .get(identity)
+        .map_or(false, |state| now < state.reactivate_at)
 }
