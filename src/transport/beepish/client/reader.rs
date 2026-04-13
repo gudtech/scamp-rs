@@ -6,10 +6,8 @@
 use log;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::io::{AsyncBufReadExt, BufReader, ReadHalf};
-use tokio::net::TcpStream;
+use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
 use tokio::sync::{mpsc, oneshot, Mutex};
-use tokio_native_tls::TlsStream;
 
 use super::ScampResponse;
 use crate::transport::beepish::proto::{Packet, PacketHeader, PacketType, ParseResult};
@@ -32,9 +30,9 @@ pub(super) struct OutgoingState {
 /// Shared map of outgoing message states, keyed by msgno.
 pub(super) type OutgoingMap = Arc<Mutex<HashMap<u64, OutgoingState>>>;
 
-/// Read packets from the TLS stream, assemble messages, deliver to pending map.
+/// Read packets from the stream, assemble messages, deliver to pending map.
 pub(super) async fn reader_task(
-    reader: ReadHalf<TlsStream<TcpStream>>,
+    reader: impl AsyncRead + Unpin,
     pending: Arc<Mutex<HashMap<i64, oneshot::Sender<ScampResponse>>>>,
     writer_tx: mpsc::Sender<Packet>,
     outgoing: OutgoingMap,

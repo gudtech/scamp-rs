@@ -4,10 +4,10 @@
 //! Perl Transport::BEEPish::Server and JS actor/service.js.
 
 mod announce;
-mod handler;
+pub(crate) mod handler;
 mod listener;
 pub mod multicast;
-mod server_connection;
+pub(crate) mod server_connection;
 
 pub use handler::{ActionHandlerFn, ActionInfo, ScampReply, ScampRequest};
 pub use listener::ScampService;

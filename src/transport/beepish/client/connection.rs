@@ -6,11 +6,11 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::io::{AsyncWriteExt, WriteHalf};
+use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::time::timeout;
-use tokio_native_tls::{native_tls, TlsConnector, TlsStream};
+use tokio_native_tls::{native_tls, TlsConnector};
 
 use super::reader;
 use crate::config::Config;
@@ -30,6 +30,7 @@ pub const DEFAULT_CLIENT_TIMEOUT_SECS: u64 = 90;
 pub const DEFAULT_SERVER_TIMEOUT_SECS: u64 = 120;
 
 /// A SCAMP response received from a service.
+#[derive(Debug)]
 pub struct ScampResponse {
     pub header: PacketHeader,
     pub body: Vec<u8>,
@@ -89,6 +90,38 @@ impl BeepishClient {
 }
 
 impl ConnectionHandle {
+    /// Set up reader/writer tasks over any async stream.
+    /// Used by `connect()` after TLS and by tests with in-memory streams.
+    pub(crate) fn from_stream(
+        stream: impl AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    ) -> Self {
+        let (read_half, write_half) = tokio::io::split(stream);
+        let (writer_tx, writer_rx) = mpsc::channel::<Packet>(256);
+        let pending: Arc<Mutex<HashMap<i64, oneshot::Sender<ScampResponse>>>> =
+            Arc::new(Mutex::new(HashMap::new()));
+        let closed = Arc::new(AtomicBool::new(false));
+        let outgoing: reader::OutgoingMap = Arc::new(Mutex::new(HashMap::new()));
+
+        let writer_handle = tokio::spawn(writer_task(write_half, writer_rx));
+        let reader_pending = pending.clone();
+        let reader_writer_tx = writer_tx.clone();
+        let reader_closed = closed.clone();
+        let reader_outgoing = outgoing.clone();
+        let reader_handle = tokio::spawn(async move {
+            reader::reader_task(read_half, reader_pending, reader_writer_tx, reader_outgoing).await;
+            // D12: set closed flag when reader exits
+            reader_closed.store(true, Ordering::Relaxed);
+        });
+
+        ConnectionHandle {
+            writer_tx, pending, outgoing,
+            next_request_id: AtomicI64::new(1),    // Perl Client.pm:33
+            next_outgoing_msg_no: AtomicU64::new(0), // All impls start at 0
+            closed,
+            reader_handle, writer_handle,
+        }
+    }
+
     /// Connect with TLS fingerprint verification (Perl Connection.pm:61-68).
     async fn connect(
         _config: &Config, service_info: &ServiceInfo, expected_fingerprint: Option<&str>,
@@ -120,32 +153,7 @@ impl ConnectionHandle {
             log::debug!("Certificate fingerprint verified: {}", actual_fp);
         }
 
-        let (read_half, write_half) = tokio::io::split(tls_stream);
-        let (writer_tx, writer_rx) = mpsc::channel::<Packet>(256);
-        let pending: Arc<Mutex<HashMap<i64, oneshot::Sender<ScampResponse>>>> =
-            Arc::new(Mutex::new(HashMap::new()));
-
-        let closed = Arc::new(AtomicBool::new(false));
-        let outgoing: reader::OutgoingMap = Arc::new(Mutex::new(HashMap::new()));
-
-        let writer_handle = tokio::spawn(writer_task(write_half, writer_rx));
-        let reader_pending = pending.clone();
-        let reader_writer_tx = writer_tx.clone();
-        let reader_closed = closed.clone();
-        let reader_outgoing = outgoing.clone();
-        let reader_handle = tokio::spawn(async move {
-            reader::reader_task(read_half, reader_pending, reader_writer_tx, reader_outgoing).await;
-            // D12: set closed flag when reader exits
-            reader_closed.store(true, Ordering::Relaxed);
-        });
-
-        Ok(ConnectionHandle {
-            writer_tx, pending, outgoing,
-            next_request_id: AtomicI64::new(1),    // Perl Client.pm:33
-            next_outgoing_msg_no: AtomicU64::new(0), // All impls start at 0
-            closed,
-            reader_handle, writer_handle,
-        })
+        Ok(Self::from_stream(tls_stream))
     }
 
     pub async fn send_request(
@@ -222,7 +230,7 @@ impl Drop for ConnectionHandle {
     }
 }
 
-async fn writer_task(mut writer: WriteHalf<TlsStream<TcpStream>>, mut rx: mpsc::Receiver<Packet>) {
+async fn writer_task(mut writer: impl AsyncWrite + Unpin, mut rx: mpsc::Receiver<Packet>) {
     while let Some(packet) = rx.recv().await {
         if let Err(e) = packet.write(&mut writer).await {
             log::error!("Error writing packet: {}", e);
@@ -232,5 +240,108 @@ async fn writer_task(mut writer: WriteHalf<TlsStream<TcpStream>>, mut rx: mpsc::
             log::error!("Error flushing writer: {}", e);
             break;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::service::server_connection;
+    use crate::service::handler::{RegisteredAction, ScampReply};
+
+    fn echo_actions() -> Arc<HashMap<String, RegisteredAction>> {
+        let mut actions = HashMap::new();
+        actions.insert(
+            "echo.v1".to_string(),
+            RegisteredAction {
+                name: "echo".to_string(),
+                version: 1,
+                handler: Arc::new(|req| Box::pin(async move { ScampReply::ok(req.body) })),
+            },
+        );
+        Arc::new(actions)
+    }
+
+    #[tokio::test]
+    async fn test_client_echo() {
+        let (client_stream, server_stream) = tokio::io::duplex(65536);
+        let actions = echo_actions();
+        let _server = tokio::spawn(
+            server_connection::handle_connection(server_stream, actions),
+        );
+
+        let conn = ConnectionHandle::from_stream(client_stream);
+        let resp = conn
+            .send_request(
+                "echo", 1, EnvelopeFormat::Json, "", 0,
+                b"hello from client".to_vec(), Duration::from_secs(5),
+            )
+            .await
+            .unwrap();
+
+        assert!(resp.error.is_none());
+        assert_eq!(resp.body, b"hello from client");
+        assert_eq!(resp.header.message_type, MessageType::Reply);
+        assert_eq!(resp.header.request_id.0, 1);
+    }
+
+    #[tokio::test]
+    async fn test_client_unknown_action_error() {
+        let (client_stream, server_stream) = tokio::io::duplex(65536);
+        let _server = tokio::spawn(
+            server_connection::handle_connection(server_stream, echo_actions()),
+        );
+
+        let conn = ConnectionHandle::from_stream(client_stream);
+        let resp = conn
+            .send_request(
+                "nonexistent", 1, EnvelopeFormat::Json, "", 0,
+                b"{}".to_vec(), Duration::from_secs(5),
+            )
+            .await
+            .unwrap();
+
+        assert!(resp.header.error.as_ref().unwrap().contains("No such action"));
+        assert_eq!(resp.header.error_code.as_deref(), Some("not_found"));
+    }
+
+    #[tokio::test]
+    async fn test_client_large_body() {
+        let (client_stream, server_stream) = tokio::io::duplex(65536);
+        let _server = tokio::spawn(
+            server_connection::handle_connection(server_stream, echo_actions()),
+        );
+
+        let body = vec![0xABu8; 5000];
+        let conn = ConnectionHandle::from_stream(client_stream);
+        let resp = conn
+            .send_request(
+                "echo", 1, EnvelopeFormat::Json, "", 0,
+                body.clone(), Duration::from_secs(5),
+            )
+            .await
+            .unwrap();
+
+        assert!(resp.error.is_none());
+        assert_eq!(resp.body.len(), 5000);
+        assert_eq!(resp.body, body);
+    }
+
+    #[tokio::test]
+    async fn test_client_request_timeout() {
+        // Server that accepts but never responds
+        let (client_stream, _server_stream) = tokio::io::duplex(65536);
+        let conn = ConnectionHandle::from_stream(client_stream);
+
+        let result = conn
+            .send_request(
+                "echo", 1, EnvelopeFormat::Json, "", 0,
+                b"{}".to_vec(), Duration::from_millis(100),
+            )
+            .await;
+
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("timed out"), "Expected timeout error, got: {}", err);
     }
 }

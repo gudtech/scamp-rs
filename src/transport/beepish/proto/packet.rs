@@ -64,25 +64,30 @@ impl Packet {
             return ParseResult::TooShort;
         }
 
-        // Perl Connection.pm:46 limits header line to 80 bytes
-        let hdr_len = buf.len().min(80);
-        let hdr = match std::str::from_utf8(&buf[..hdr_len]) {
-            Ok(hdr) => hdr.trim_end_matches('\0'),
-            Err(_) => return ParseResult::Fatal(anyhow!("Invalid UTF-8 in header")),
+        // Find \r\n in raw bytes first — the body after the header line may
+        // contain arbitrary binary data that isn't valid UTF-8.
+        // Perl Connection.pm:46 limits header line to 80 bytes.
+        let scan_len = buf.len().min(80);
+        let cut = match buf[..scan_len].windows(2).position(|w| w == b"\r\n") {
+            Some(pos) => pos,
+            None => {
+                if buf[..scan_len].contains(&b'\n') {
+                    return ParseResult::Fatal(anyhow!(
+                        "Malformed request line (bare \\n, expected \\r\\n)"
+                    ));
+                }
+                if scan_len >= 80 {
+                    return ParseResult::Fatal(anyhow!("Overlong header line"));
+                }
+                return ParseResult::TooShort;
+            }
         };
 
-        // Perl Connection.pm:46 — header line must end with \r\n
-        let Some(cut) = hdr.find("\r\n") else {
-            if hdr.contains('\n') {
-                return ParseResult::Fatal(anyhow!("Malformed request line (bare \\n, expected \\r\\n)"));
-            }
-            if hdr_len >= 80 {
-                return ParseResult::Fatal(anyhow!("Overlong header line"));
-            }
-            return ParseResult::TooShort;
+        // Only the header line needs to be valid UTF-8
+        let header_line = match std::str::from_utf8(&buf[..cut]) {
+            Ok(line) => line,
+            Err(_) => return ParseResult::Fatal(anyhow!("Invalid UTF-8 in header line")),
         };
-
-        let header_line = &hdr[..cut]; // exclude the \r\n itself
         let parts: Vec<&str> = header_line.split_whitespace().collect();
         if parts.len() != 3 {
             return ParseResult::Fatal(anyhow!("Malformed header line"));
