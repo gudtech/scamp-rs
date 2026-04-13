@@ -19,7 +19,15 @@ use crate::transport::beepish::proto::{
     EnvelopeFormat, FlexInt, MessageType, Packet, PacketHeader, PacketType, DATA_CHUNK_SIZE,
 };
 
-const DEFAULT_TIMEOUT_SECS: u64 = 75;
+/// Default per-request (RPC) timeout — Perl ServiceInfo.pm:257
+pub const DEFAULT_RPC_TIMEOUT_SECS: u64 = 75;
+
+/// Default client connection idle timeout — Perl Client.pm:40
+pub const DEFAULT_CLIENT_TIMEOUT_SECS: u64 = 90;
+
+/// Default server connection idle timeout — Perl Server.pm:58
+#[allow(dead_code)]
+pub const DEFAULT_SERVER_TIMEOUT_SECS: u64 = 120;
 
 /// A SCAMP response received from a service.
 pub struct ScampResponse {
@@ -74,7 +82,7 @@ impl BeepishClient {
         body: Vec<u8>, timeout_secs: Option<u64>,
     ) -> Result<ScampResponse> {
         let conn = self.get_connection(service_info).await?;
-        let dur = Duration::from_secs(timeout_secs.unwrap_or(DEFAULT_TIMEOUT_SECS));
+        let dur = Duration::from_secs(timeout_secs.unwrap_or(DEFAULT_RPC_TIMEOUT_SECS));
         conn.send_request(action, version, envelope, ticket, client_id, body, dur).await
     }
 }
