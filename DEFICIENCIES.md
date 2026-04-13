@@ -90,6 +90,11 @@ Confirmed matching across all implementations:
 | T2 | Zero tests for client request sending | Fixed: 4 tests (echo, error, large body, timeout) |
 | Q5 | listener.rs exceeds 300-line limit | Fixed: extracted server_connection.rs (299 prod lines + tests) |
 | BUG | Packet::parse failed on binary body data | Fixed: find \r\n in raw bytes before UTF-8 decode |
+| D10 | No graceful shutdown | Fixed: tokio::select on shutdown watch, 30s drain timeout |
+| D22 | No bus_info() interface resolution | Fixed: bus_info module with getifaddrs, if:ethN, private IP auto-detect |
+| D23 | Server binds to 0.0.0.0 | Fixed: bind_pem takes bind_ip from BusInfo |
+| D28 | No high-level Requester API | Fixed: Requester::request() combines lookup+connect+send |
+| D29 | Flags not filtered to announceable set | Fixed: filter to ANNOUNCEABLE set in announcement building |
 
 ## Remaining Deficiencies
 
@@ -110,17 +115,12 @@ Confirmed matching across all implementations:
 
 | ID | Description | Ref |
 |----|-------------|-----|
-| **D10** | No graceful shutdown (drain active requests before close) | service.js:78-91 |
 | **D11** | No ticket verification (parse, sig verify, expiry, privileges) | ticket.go, ticket.js |
-| **D29** | Flags not filtered to announceable set during announcement building | Announcer.pm:103 |
 
 ### Remaining Config / API
 
 | ID | Description | Ref |
 |----|-------------|-----|
-| **D22** | No `bus_info()` interface resolution (`if:ethN`, auto-detect) | Config.pm:59-101 |
-| **D23** | Server binds to `0.0.0.0` instead of `service.address` | Server.pm:34 |
-| **D28** | No high-level Requester API | Requester.pm:20-43 |
 | **D31** | No `dispatch_failure` / retry on failed dispatch | requester.js:50-58 |
 | **D32** | No service failure tracking / backoff | serviceMgr.js:43-52 |
 
