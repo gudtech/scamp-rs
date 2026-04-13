@@ -200,6 +200,13 @@ struct IncomingRequest {
 type ServerWriter =
     Arc<Mutex<tokio::io::WriteHalf<tokio_native_tls::TlsStream<tokio::net::TcpStream>>>>;
 
+/// Tracks bytes sent/acknowledged for an outgoing reply (D5 flow control).
+#[derive(Debug, Default)]
+struct OutgoingReplyState {
+    sent: u64,
+    acknowledged: u64,
+}
+
 async fn handle_connection(
     tls_stream: tokio_native_tls::TlsStream<tokio::net::TcpStream>,
     actions: Arc<HashMap<String, RegisteredAction>>,
@@ -208,6 +215,7 @@ async fn handle_connection(
     let writer: ServerWriter = Arc::new(Mutex::new(writer));
     let mut reader = BufReader::new(reader);
     let mut incoming: HashMap<u64, IncomingRequest> = HashMap::new();
+    let mut outgoing: HashMap<u64, OutgoingReplyState> = HashMap::new();
     let mut next_incoming_msg_no: u64 = 0;
     let next_outgoing_msg_no = AtomicU64::new(0);
 
@@ -234,6 +242,7 @@ async fn handle_connection(
                     route_packet(
                         packet,
                         &mut incoming,
+                        &mut outgoing,
                         &mut next_incoming_msg_no,
                         &next_outgoing_msg_no,
                         &writer,
@@ -254,6 +263,7 @@ async fn handle_connection(
 async fn route_packet(
     packet: Packet,
     incoming: &mut HashMap<u64, IncomingRequest>,
+    outgoing: &mut HashMap<u64, OutgoingReplyState>,
     next_incoming_msg_no: &mut u64,
     next_outgoing_msg_no: &AtomicU64,
     writer: &ServerWriter,
@@ -282,7 +292,7 @@ async fn route_packet(
         }
         PacketType::Eof => {
             if let Some(msg) = incoming.remove(&packet.msg_no) {
-                dispatch_and_reply(msg, next_outgoing_msg_no, writer, actions).await;
+                dispatch_and_reply(msg, next_outgoing_msg_no, outgoing, writer, actions).await;
             }
         }
         PacketType::Txerr => {
@@ -294,7 +304,28 @@ async fn route_packet(
             }
             incoming.remove(&packet.msg_no);
         }
-        PacketType::Ack => {}
+        PacketType::Ack => {
+            // Perl Connection.pm:177-183 — validate ACK value
+            let body_str = String::from_utf8_lossy(&packet.body);
+            let ack_val: u64 = match body_str.parse() {
+                Ok(v) if v > 0 => v,
+                _ => {
+                    log::error!("Malformed ACK body: {:?}", body_str);
+                    return;
+                }
+            };
+            if let Some(state) = outgoing.get_mut(&packet.msg_no) {
+                if ack_val <= state.acknowledged {
+                    log::error!("ACK pointer moved backward: {} <= {}", ack_val, state.acknowledged);
+                    return;
+                }
+                if ack_val > state.sent {
+                    log::error!("ACK pointer past end: {} > sent {}", ack_val, state.sent);
+                    return;
+                }
+                state.acknowledged = ack_val;
+            }
+        }
         PacketType::Ping => {
             let pong = Packet { packet_type: PacketType::Pong, msg_no: packet.msg_no, packet_header: None, body: vec![] };
             let mut w = writer.lock().await;
@@ -308,6 +339,7 @@ async fn route_packet(
 async fn dispatch_and_reply(
     msg: IncomingRequest,
     next_outgoing_msg_no: &AtomicU64,
+    outgoing: &mut HashMap<u64, OutgoingReplyState>,
     writer: &ServerWriter,
     actions: &Arc<HashMap<String, RegisteredAction>>,
 ) {
@@ -337,14 +369,22 @@ async fn dispatch_and_reply(
         version: 0,
     };
 
+    // Track outgoing bytes for ACK validation (D5)
+    outgoing.insert(reply_msg_no, OutgoingReplyState::default());
+
     let mut w = writer.lock().await;
     let _ = Packet { packet_type: PacketType::Header, msg_no: reply_msg_no, packet_header: Some(reply_header), body: vec![] }.write(&mut *w).await;
     let mut offset = 0;
     while offset < reply.body.len() {
         let end = (offset + DATA_CHUNK_SIZE).min(reply.body.len());
+        let chunk_len = (end - offset) as u64;
         let _ = Packet { packet_type: PacketType::Data, msg_no: reply_msg_no, packet_header: None, body: reply.body[offset..end].to_vec() }.write(&mut *w).await;
+        if let Some(state) = outgoing.get_mut(&reply_msg_no) { state.sent += chunk_len; }
         offset = end;
     }
     let _ = Packet { packet_type: PacketType::Eof, msg_no: reply_msg_no, packet_header: None, body: vec![] }.write(&mut *w).await;
     let _ = w.flush().await;
+
+    // Clean up outgoing state
+    outgoing.remove(&reply_msg_no);
 }

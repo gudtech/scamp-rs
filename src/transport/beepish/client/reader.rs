@@ -21,11 +21,23 @@ struct IncomingMessage {
     received: usize,
 }
 
+/// Tracks bytes sent/acknowledged for an outgoing message (D5 flow control).
+/// Perl Connection.pm:177-183
+#[derive(Debug, Default)]
+pub(super) struct OutgoingState {
+    pub sent: u64,
+    pub acknowledged: u64,
+}
+
+/// Shared map of outgoing message states, keyed by msgno.
+pub(super) type OutgoingMap = Arc<Mutex<HashMap<u64, OutgoingState>>>;
+
 /// Read packets from the TLS stream, assemble messages, deliver to pending map.
 pub(super) async fn reader_task(
     reader: ReadHalf<TlsStream<TcpStream>>,
     pending: Arc<Mutex<HashMap<i64, oneshot::Sender<ScampResponse>>>>,
     writer_tx: mpsc::Sender<Packet>,
+    outgoing: OutgoingMap,
 ) {
     let mut reader = BufReader::new(reader);
     let mut incoming: HashMap<u64, IncomingMessage> = HashMap::new();
@@ -50,7 +62,7 @@ pub(super) async fn reader_task(
                     consumed += bytes_used;
                     route_packet(
                         packet, &mut incoming, &mut next_incoming_msg_no,
-                        &pending, &writer_tx,
+                        &pending, &writer_tx, &outgoing,
                     ).await;
                 }
                 ParseResult::Fatal(err) => {
@@ -88,6 +100,7 @@ async fn route_packet(
     next_incoming_msg_no: &mut u64,
     pending: &Arc<Mutex<HashMap<i64, oneshot::Sender<ScampResponse>>>>,
     writer_tx: &mpsc::Sender<Packet>,
+    outgoing: &OutgoingMap,
 ) {
     match packet.packet_type {
         PacketType::Header => {
@@ -152,8 +165,28 @@ async fn route_packet(
             }
         }
         PacketType::Ack => {
-            // Send-side flow control — not yet implemented (D5)
-            // Perl Connection.pm:177-183 validates ACK value
+            // Perl Connection.pm:177-183 — validate ACK value
+            let body_str = String::from_utf8_lossy(&packet.body);
+            let ack_val: u64 = match body_str.parse() {
+                Ok(v) if v > 0 => v,
+                _ => {
+                    log::error!("Malformed ACK body: {:?}", body_str);
+                    return;
+                }
+            };
+            let mut out = outgoing.lock().await;
+            if let Some(state) = out.get_mut(&packet.msg_no) {
+                if ack_val <= state.acknowledged {
+                    log::error!("ACK pointer moved backward: {} <= {}", ack_val, state.acknowledged);
+                    return;
+                }
+                if ack_val > state.sent {
+                    log::error!("ACK pointer past end: {} > sent {}", ack_val, state.sent);
+                    return;
+                }
+                state.acknowledged = ack_val;
+            }
+            // Note: full pause/resume at watermark (65536) not yet implemented
         }
         PacketType::Ping => {
             let pong = Packet { packet_type: PacketType::Pong, msg_no: packet.msg_no, packet_header: None, body: vec![] };

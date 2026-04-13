@@ -46,6 +46,7 @@ pub struct BeepishClient {
 pub struct ConnectionHandle {
     writer_tx: mpsc::Sender<Packet>,
     pending: Arc<Mutex<HashMap<i64, oneshot::Sender<ScampResponse>>>>,
+    outgoing: reader::OutgoingMap,
     next_request_id: AtomicI64,
     next_outgoing_msg_no: AtomicU64,
     closed: Arc<AtomicBool>,
@@ -125,19 +126,21 @@ impl ConnectionHandle {
             Arc::new(Mutex::new(HashMap::new()));
 
         let closed = Arc::new(AtomicBool::new(false));
+        let outgoing: reader::OutgoingMap = Arc::new(Mutex::new(HashMap::new()));
 
         let writer_handle = tokio::spawn(writer_task(write_half, writer_rx));
         let reader_pending = pending.clone();
         let reader_writer_tx = writer_tx.clone();
         let reader_closed = closed.clone();
+        let reader_outgoing = outgoing.clone();
         let reader_handle = tokio::spawn(async move {
-            reader::reader_task(read_half, reader_pending, reader_writer_tx).await;
+            reader::reader_task(read_half, reader_pending, reader_writer_tx, reader_outgoing).await;
             // D12: set closed flag when reader exits
             reader_closed.store(true, Ordering::Relaxed);
         });
 
         Ok(ConnectionHandle {
-            writer_tx, pending,
+            writer_tx, pending, outgoing,
             next_request_id: AtomicI64::new(1),    // Perl Client.pm:33
             next_outgoing_msg_no: AtomicU64::new(0), // All impls start at 0
             closed,
@@ -166,28 +169,39 @@ impl ConnectionHandle {
             message_type: MessageType::Request, version,
         };
 
+        // Register outgoing message for ACK tracking (D5)
+        { self.outgoing.lock().await.insert(msg_no, reader::OutgoingState::default()); }
+
         // HEADER
         if self.writer_tx.send(Packet { packet_type: PacketType::Header, msg_no, packet_header: Some(header), body: vec![] }).await.is_err() {
             self.pending.lock().await.remove(&request_id);
+            self.outgoing.lock().await.remove(&msg_no);
             return Err(anyhow!("Connection closed while sending header"));
         }
 
-        // DATA chunks
+        // DATA chunks — track bytes sent for ACK validation
         let mut offset = 0;
         while offset < body.len() {
             let end = (offset + DATA_CHUNK_SIZE).min(body.len());
+            let chunk_len = (end - offset) as u64;
             if self.writer_tx.send(Packet { packet_type: PacketType::Data, msg_no, packet_header: None, body: body[offset..end].to_vec() }).await.is_err() {
                 self.pending.lock().await.remove(&request_id);
+                self.outgoing.lock().await.remove(&msg_no);
                 return Err(anyhow!("Connection closed while sending data"));
             }
+            { self.outgoing.lock().await.get_mut(&msg_no).map(|s| s.sent += chunk_len); }
             offset = end;
         }
 
         // EOF (empty body — Perl Connection.pm:162)
         if self.writer_tx.send(Packet { packet_type: PacketType::Eof, msg_no, packet_header: None, body: vec![] }).await.is_err() {
             self.pending.lock().await.remove(&request_id);
+            self.outgoing.lock().await.remove(&msg_no);
             return Err(anyhow!("Connection closed while sending EOF"));
         }
+
+        // Clean up outgoing state after message is fully sent
+        self.outgoing.lock().await.remove(&msg_no);
 
         match timeout(timeout_duration, response_rx).await {
             Ok(Ok(response)) => Ok(response),
