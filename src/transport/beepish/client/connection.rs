@@ -274,21 +274,7 @@ async fn writer_task(mut writer: impl AsyncWrite + Unpin, mut rx: mpsc::Receiver
 mod tests {
     use super::*;
     use crate::service::server_connection;
-    use crate::service::handler::{RegisteredAction, ScampReply};
-
-    fn echo_actions() -> Arc<HashMap<String, RegisteredAction>> {
-        let mut actions = HashMap::new();
-        actions.insert(
-            "echo.v1".to_string(),
-            RegisteredAction {
-                name: "echo".to_string(),
-                version: 1,
-                flags: vec![],
-                handler: Arc::new(|req| Box::pin(async move { ScampReply::ok(req.body) })),
-            },
-        );
-        Arc::new(actions)
-    }
+    use crate::test_helpers::echo_actions;
 
     #[tokio::test]
     async fn test_client_echo() {
