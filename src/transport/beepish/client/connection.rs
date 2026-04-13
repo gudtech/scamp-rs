@@ -235,17 +235,19 @@ impl ConnectionHandle {
             return Err(anyhow!("Connection closed while sending EOF"));
         }
 
-        // Clean up outgoing state after message is fully sent
-        self.outgoing.lock().await.remove(&msg_no);
-
-        match timeout(timeout_duration, response_rx).await {
+        // Wait for response, then clean up outgoing state.
+        // Outgoing state kept alive until response arrives so ACK validation
+        // works for the full request lifecycle (I1 from audit).
+        let result = match timeout(timeout_duration, response_rx).await {
             Ok(Ok(response)) => Ok(response),
             Ok(Err(_)) => Err(anyhow!("Connection lost while waiting for response")),
             Err(_) => {
                 self.pending.lock().await.remove(&request_id);
                 Err(anyhow!("Request timed out after {:?}", timeout_duration))
             }
-        }
+        };
+        self.outgoing.lock().await.remove(&msg_no);
+        result
     }
 }
 

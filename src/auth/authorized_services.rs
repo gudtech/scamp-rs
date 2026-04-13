@@ -17,7 +17,6 @@
 //! - Actions or sectors containing `:` are rejected (Perl ServiceInfo.pm:149)
 
 use anyhow::Result;
-use regex::RegexSet;
 use std::collections::HashMap;
 use std::fs;
 use std::time::SystemTime;
