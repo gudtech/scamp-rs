@@ -12,9 +12,9 @@ pub use packet::{Packet, ParseResult};
 
 pub const MAX_PACKET_SIZE: usize = 131072;
 
-/// Maximum DATA chunk size when sending. All receivers handle up to 131072.
-/// Perl uses 2048, Go uses 128KB, JS uses 131072.
-pub const DATA_CHUNK_SIZE: usize = 131072;
+/// Maximum DATA chunk size when sending.
+/// Perl Connection.pm:218 uses 2048. All receivers handle up to MAX_PACKET_SIZE.
+pub const DATA_CHUNK_SIZE: usize = 2048;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum PacketType {
