@@ -15,7 +15,7 @@ use std::fmt;
 /// - `client_id` — FlexInt (accepts both integer and string JSON)
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PacketHeader {
-    #[serde(default, skip_serializing_if = "String::is_empty")]
+    #[serde(default, deserialize_with = "nullable_string", skip_serializing_if = "String::is_empty")]
     pub action: String,
 
     #[serde(default)]
@@ -33,10 +33,10 @@ pub struct PacketHeader {
     #[serde(default)]
     pub client_id: FlexInt,
 
-    #[serde(default, skip_serializing_if = "String::is_empty")]
+    #[serde(default, deserialize_with = "nullable_string", skip_serializing_if = "String::is_empty")]
     pub ticket: String,
 
-    #[serde(default, skip_serializing_if = "String::is_empty")]
+    #[serde(default, deserialize_with = "nullable_string", skip_serializing_if = "String::is_empty")]
     pub identifying_token: String,
 
     /// Wire format: "request" or "reply". JSON field name is "type".
@@ -62,6 +62,12 @@ impl Default for PacketHeader {
             version: 1,
         }
     }
+}
+
+/// Deserialize a JSON value as String, treating null as empty string.
+/// Perl sends `ticket => undef` which JSON-encodes as `"ticket": null`.
+fn nullable_string<'de, D: Deserializer<'de>>(deserializer: D) -> Result<String, D::Error> {
+    Option::<String>::deserialize(deserializer).map(|opt| opt.unwrap_or_default())
 }
 
 // ---- EnvelopeFormat ----

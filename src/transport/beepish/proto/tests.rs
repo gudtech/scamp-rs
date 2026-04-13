@@ -168,3 +168,19 @@ fn test_packet_parse_need_bytes() {
     let buf = b"DATA 0 100\r\npartial";
     assert!(matches!(Packet::parse(buf), ParseResult::NeedBytes { .. }));
 }
+
+/// Perl simple_async_request sends ticket:null — must not crash deserialization.
+#[test]
+fn test_header_with_null_ticket() {
+    let json = r#"{"action":"ScampRsTest.echo","version":1,"envelope":"json","ticket":null,"type":"request","request_id":1}"#;
+    let result: Result<PacketHeader, _> = serde_json::from_str(json);
+    assert!(result.is_ok(), "ticket:null should deserialize, got: {:?}", result.err());
+}
+
+/// Some implementations may send identifying_token:null too.
+#[test]
+fn test_header_with_null_identifying_token() {
+    let json = r#"{"action":"test","version":1,"envelope":"json","identifying_token":null,"type":"request","request_id":1}"#;
+    let result: Result<PacketHeader, _> = serde_json::from_str(json);
+    assert!(result.is_ok(), "identifying_token:null should deserialize, got: {:?}", result.err());
+}

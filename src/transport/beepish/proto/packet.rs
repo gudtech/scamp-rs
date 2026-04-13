@@ -122,10 +122,11 @@ impl Packet {
             "ACK" => PacketType::Ack,
             "PING" => PacketType::Ping,
             "PONG" => PacketType::Pong,
+            // Perl Connection.pm:187 — unknown packet type is fatal
             _ => {
-                return ParseResult::Drop {
-                    bytes_used: payload_end + 5,
-                }
+                return ParseResult::Fatal(anyhow!(
+                    "Unexpected packet of type {}", cmd
+                ));
             }
         };
 
@@ -133,10 +134,11 @@ impl Packet {
             packet_header: if packet_type == PacketType::Header {
                 match serde_json::from_slice(payload) {
                     Ok(header) => Some(header),
-                    Err(_) => {
-                        return ParseResult::Drop {
-                            bytes_used: payload_end + 5,
-                        };
+                    // Perl Connection.pm:148-149 — malformed header JSON is fatal
+                    Err(e) => {
+                        return ParseResult::Fatal(anyhow!(
+                            "Malformed JSON in received header: {}", e
+                        ));
                     }
                 }
             } else {
