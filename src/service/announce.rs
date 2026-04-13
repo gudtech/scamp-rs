@@ -10,8 +10,7 @@ use std::collections::BTreeMap;
 
 use super::handler::ActionInfo;
 
-/// Perl Announcer.pm:103
-#[allow(dead_code)]
+/// Perl Announcer.pm:103 — only these flags appear in announcements.
 const ANNOUNCEABLE: &[&str] = &["create", "destroy", "noauth", "read", "secret", "update"];
 
 /// Build a v3+v4 announcement packet (signed, ready for zlib + multicast).
@@ -53,7 +52,14 @@ pub fn build_announcement_packet(
 
             // Filter flags to announceable set, sorted alphabetically
             // Perl Announcer.pm:137-139
-            let flags = String::new(); // TODO: action flags when ActionInfo gains them
+            let mut ann_flags: Vec<&str> = action
+                .flags
+                .iter()
+                .map(|s| s.as_str())
+                .filter(|f| ANNOUNCEABLE.contains(f))
+                .collect();
+            ann_flags.sort();
+            let flags = ann_flags.join(",");
 
             // All actions go into v3 compat zone (no custom sector/envelopes yet)
             // Perl Announcer.pm:141-148
@@ -234,8 +240,8 @@ mod tests {
         let cert_pem = std::fs::read(format!("{}/GT/backplane/devkeys/dev.crt", home)).unwrap();
 
         let actions = vec![
-            ActionInfo { name: "ScampRsTest.echo".into(), version: 1 },
-            ActionInfo { name: "ScampRsTest.health_check".into(), version: 1 },
+            ActionInfo { name: "ScampRsTest.echo".into(), version: 1, flags: vec![] },
+            ActionInfo { name: "ScampRsTest.health_check".into(), version: 1, flags: vec![] },
         ];
 
         let packet = build_announcement_packet(

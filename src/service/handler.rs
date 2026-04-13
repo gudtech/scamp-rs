@@ -52,6 +52,7 @@ pub type ActionHandlerFn = Arc<
 pub(crate) struct RegisteredAction {
     pub name: String,
     pub version: i32,
+    pub flags: Vec<String>,
     pub handler: ActionHandlerFn,
 }
 
@@ -60,6 +61,7 @@ pub(crate) struct RegisteredAction {
 pub struct ActionInfo {
     pub name: String,
     pub version: i32,
+    pub flags: Vec<String>,
 }
 
 impl From<&RegisteredAction> for ActionInfo {
@@ -67,6 +69,7 @@ impl From<&RegisteredAction> for ActionInfo {
         ActionInfo {
             name: ra.name.clone(),
             version: ra.version,
+            flags: ra.flags.clone(),
         }
     }
 }

@@ -92,6 +92,7 @@ impl ScampService {
             RegisteredAction {
                 name: action.to_string(),
                 version,
+                flags: vec![],
                 handler,
             },
         );

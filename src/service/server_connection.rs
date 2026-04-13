@@ -309,6 +309,7 @@ mod tests {
             RegisteredAction {
                 name: "echo".to_string(),
                 version: 1,
+                flags: vec![],
                 handler: Arc::new(|req| Box::pin(async move { ScampReply::ok(req.body) })),
             },
         );
