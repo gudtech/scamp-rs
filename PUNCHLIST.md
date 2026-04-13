@@ -184,19 +184,21 @@ docker exec main perl -e '
 **Goal**: Wire protocol matches Perl exactly, backed by Perl-captured test vectors.
 
 Items:
-- [ ] **T-1** Capture wire packets from Perl (HEADER+DATA+EOF+ACK) as test fixtures
 - [ ] **T-2** Server hot path tests (handle_connection, route_packet, dispatch_and_reply)
-- [ ] **T-3** Shared test helpers: packet builders, default headers, sample keypair loader
-- [ ] **W-1** Require `\r\n` in header line parsing (not bare `\n`) — D16
-- [ ] **W-4** Send-side flow control: validate ACKs, pause/resume at 65536 bytes — D5
-- [ ] **W-7** Reader task sets `closed` flag on exit — D12
-- [ ] **W-10** Validate TXERR body non-empty — D27
-- [ ] **W-11** Connection idle timeout with `_adj_timeout` logic — D6
-- [ ] **W-12** Busy flag: track pending requests, adjust timeout
-- [x] ~~W-8 Unknown packet types → Fatal~~ (done)
-- [x] ~~W-9 Malformed HEADER JSON → Fatal~~ (done)
-- [x] ~~S-14 CRUD alias: `"destroy"` not `"delete"`~~ (done)
-- [x] ~~S-15 Filter v4 accompat != 1~~ (done)
+- [ ] **W-12** Busy flag: track pending requests, adjust client timeout
+- [ ] **W-5** Send-side flow control: pause/resume at 65536 watermark
+- [x] ~~T-1/T-3~~ Perl wire fixtures + packet builder helpers (fixtures.rs, 12 new tests)
+- [x] ~~W-1~~ Require `\r\n` in header line parsing — D16
+- [x] ~~W-4~~ ACK validation: format, monotonic, not-past-end — D5
+- [x] ~~W-7~~ Reader task sets `closed` flag on exit — D12
+- [x] ~~W-10~~ Validate TXERR body non-empty — D27
+- [x] ~~W-11~~ Server connection idle timeout (120s) — D6
+- [x] ~~W-8~~ Unknown packet types → Fatal — D13
+- [x] ~~W-9~~ Malformed HEADER JSON → Fatal — D14
+- [x] ~~S-14~~ CRUD alias: `"destroy"` not `"delete"`
+- [x] ~~S-15~~ Filter v4 accompat != 1
+- [x] ~~D15~~ Always serialize action/ticket/identifying_token
+- [x] ~~D30~~ DATA chunk size 2048 to match Perl
 
 **Verification**:
 ```bash
@@ -210,13 +212,13 @@ cargo test  # all unit tests pass
 
 **Goal**: Config parsing matches Perl exactly, timeouts are correct.
 
-- [ ] **C-15** Config: first-wins for duplicate keys — D19
-- [ ] **C-16** Config: strip inline `# comments` — D21
-- [ ] **C-9** Check `GTSOA` env var (Perl canonical) in addition to `SCAMP_CONFIG` — D20
-- [ ] **C-11** Three distinct timeouts: server=120s, client=90s, rpc=75s — D17
-- [ ] **C-12** Per-action timeout from `t600` flags (value + 5s padding) — D18
 - [ ] **C-6** bus_info(): resolve `bus.address` → IP, `if:ethN`, auto-detect — D22
 - [ ] **S-23** Bind to `service.address` interface, not `0.0.0.0` — D23
+- [x] ~~C-15~~ Config: first-wins for duplicate keys — D19
+- [x] ~~C-16~~ Config: strip inline `# comments` — D21
+- [x] ~~C-9~~ Check `GTSOA` env var — D20
+- [x] ~~C-11~~ Three distinct timeout constants (75/90/120s) — D17
+- [x] ~~C-12~~ Per-action timeout from `t600` flags (value + 5s) — D18
 
 **Verification**:
 ```bash
