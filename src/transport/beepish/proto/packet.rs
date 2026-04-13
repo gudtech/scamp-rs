@@ -71,14 +71,18 @@ impl Packet {
             Err(_) => return ParseResult::Fatal(anyhow!("Invalid UTF-8 in header")),
         };
 
-        let Some(cut) = hdr.find('\n') else {
+        // Perl Connection.pm:46 — header line must end with \r\n
+        let Some(cut) = hdr.find("\r\n") else {
+            if hdr.contains('\n') {
+                return ParseResult::Fatal(anyhow!("Malformed request line (bare \\n, expected \\r\\n)"));
+            }
             if hdr_len >= 80 {
                 return ParseResult::Fatal(anyhow!("Overlong header line"));
             }
             return ParseResult::TooShort;
         };
 
-        let header_line = &hdr[..cut + 1];
+        let header_line = &hdr[..cut]; // exclude the \r\n itself
         let parts: Vec<&str> = header_line.split_whitespace().collect();
         if parts.len() != 3 {
             return ParseResult::Fatal(anyhow!("Malformed header line"));
@@ -98,7 +102,7 @@ impl Packet {
             return ParseResult::Fatal(anyhow!("Unreasonably large packet"));
         }
 
-        let payload_start = header_line.len();
+        let payload_start = header_line.len() + 2; // +2 for \r\n
         let payload_end = payload_start + siz;
 
         if payload_end + 5 > buf.len() {

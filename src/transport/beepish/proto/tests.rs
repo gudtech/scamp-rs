@@ -184,3 +184,24 @@ fn test_header_with_null_identifying_token() {
     let result: Result<PacketHeader, _> = serde_json::from_str(json);
     assert!(result.is_ok(), "identifying_token:null should deserialize, got: {:?}", result.err());
 }
+
+/// Perl Connection.pm:46 requires \r\n — bare \n must be rejected.
+#[test]
+fn test_bare_newline_rejected() {
+    let buf = b"HEADER 0 2\n{}END\r\n";
+    assert!(matches!(Packet::parse(buf), ParseResult::Fatal(_)));
+}
+
+/// Valid \r\n header line must still parse correctly.
+#[test]
+fn test_crlf_required() {
+    let json = r#"{"type":"request","action":"test","version":1,"envelope":"json","request_id":1}"#;
+    let buf = format!("HEADER 0 {}\r\n{}END\r\n", json.len(), json);
+    match Packet::parse(buf.as_bytes()) {
+        ParseResult::Success { packet, .. } => {
+            assert_eq!(packet.packet_type, PacketType::Header);
+            assert!(packet.packet_header.is_some());
+        }
+        _ => panic!("Expected Success"),
+    }
+}
