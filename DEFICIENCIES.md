@@ -91,6 +91,34 @@ Confirmed matching across all implementations:
 | D25 | No cache refresh/reload | Fixed: inject_packet + reload_from_cache on ServiceRegistry |
 | T8 | No shared test helpers | Fixed: test_helpers.rs with echo_actions, write_request, etc. |
 
-## All 46 Deficiencies Resolved
+## All 46 Original Deficiencies Resolved
 
-No remaining items. See resolved table above for full history.
+## Post-Audit Findings (from 2x 6-agent reviews)
+
+### Resolved in audit response
+
+| ID | Description | Resolution |
+|----|-------------|------------|
+| C1 | No Auth.getAuthzTable privilege checking | Fixed: auth::authz module, integrated into dispatch pipeline |
+| C2 | No error_data header field | Fixed: added to PacketHeader, dispatch_failure checks it |
+| C3 | Blocking UDP send_to in async | Fixed: tokio::net::UdpSocket with async .await |
+| C4 | Silent write error swallowing | Fixed: errors logged, early return on broken pipe |
+| I1 | Outgoing flow-control state removed too early | Fixed: removed after response received |
+| L3 | Unused thiserror dependency | Fixed: removed from Cargo.toml |
+
+### Open audit findings (non-blocking, prioritized)
+
+| ID | Severity | Description | Source |
+|----|----------|-------------|--------|
+| A1 | Medium | ScampReply has no error_data field (handlers can't send structured errors) | C#-v2, JS-v2 |
+| A2 | Medium | register() always sets empty flags (can't register noauth actions) | C#-v2 |
+| A3 | Medium | Rust server never sets error_data:{dispatch_failure:true} | JS-v2 |
+| A4 | Low | Config keys hardcoded (rpc.timeout, beepish.* timeouts, port range) | Perl-v2 |
+| A5 | Low | V4 action vectors always empty in announcements | Perl-v2, Elegance |
+| A6 | Low | No heartbeat initiation (responds to PING, never sends) | JS-v2 |
+| A7 | Low | Connection pool grows without bound (no eviction) | JS-v2, Elegance |
+| A8 | Low | Stale cache behavior divergence (Rust serves, Perl fails) | Perl-v2 |
+| S1 | Standards | Inline tests: connection.rs (415), server_connection.rs (475) over 300 | Standards-v2 |
+| S2 | Standards | service_info/mod.rs has parsing logic (belongs in parse.rs) | Standards-v2 |
+| S3 | Standards | service_registry.rs at ~322 lines | Standards-v2 |
+| S4 | Standards | HANDOFF.md had stale references | Standards-v2 |
