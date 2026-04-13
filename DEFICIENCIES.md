@@ -44,6 +44,36 @@ Confirmed matching across all implementations:
 | D2 | No zlib compression | Fixed: flate2 Compression::best() |
 | D3 | Config keys not read | Fixed: `discovery.multicast_address`, `discovery.port` |
 | D4 | No V4 extension hash | Fixed: RLE-encoded action vectors in envelopes array |
+| D5 | No send-side ACK validation | Fixed: validate format, monotonic, not-past-end |
+| D6 | No connection idle timeout | Fixed: 120s server idle timeout |
+| D7 | No cache staleness check | Fixed: warn on stale cache (120s default) |
+| D8 | No announcement TTL/expiry | Fixed: skip expired (ts + interval*2.1) |
+| D9 | No timestamp replay protection | Fixed: reject older timestamps per identity |
+| D12 | Reader closed flag not set | Fixed: set on reader exit |
+| D13 | Unknown packet types: Drop | Fixed: now Fatal |
+| D14 | Malformed HEADER JSON: Drop | Fixed: now Fatal |
+| D15 | Empty fields omitted from JSON | Fixed: always serialize |
+| D16 | Bare `\n` accepted | Fixed: require `\r\n` |
+| D17 | Timeouts conflated | Fixed: 75/90/120s constants |
+| D18 | Per-action timeout not extracted | Fixed: ActionEntry::timeout_secs() |
+| D19 | Config last-wins | Fixed: first-wins |
+| D20 | GTSOA env var missing | Fixed: checked after SCAMP_CONFIG |
+| D21 | Inline `#` comments not stripped | Fixed: strip after `#` |
+| D26 | No service deduplication | Fixed: fingerprint+identity key |
+| D27 | TXERR body not validated | Fixed: reject empty/"0" |
+| D30 | DATA chunk 131072 | Fixed: 2048 to match Perl |
+| Q1 | socket_addr() panics | Fixed: returns Result |
+| Q2 | Non-deterministic v3 ordering | Fixed: BTreeMap |
+| Q3 | println! in library | Fixed: log macros |
+| Q4 | Unused futures dep | Fixed: removed |
+| T3 | No wire fixtures | Fixed: fixtures.rs + 12 tests |
+| T5 | Cache test no assertions | Fixed: added assertions |
+| T7 | Dead integration test | Fixed: removed |
+| T9 | Unused fixture | Fixed: removed |
+| D1 | No multicast announcement sending | Fixed: UDP multicast via socket2 |
+| D2 | No zlib compression | Fixed: flate2 Compression::best() |
+| D3 | Config keys not read | Fixed: `discovery.multicast_address`, `discovery.port` |
+| D4 | No V4 extension hash | Fixed: RLE-encoded action vectors in envelopes array |
 | D12 | Reader task doesn't set closed flag | Fixed: set on reader exit |
 | D13 | Unknown packet types: Drop instead of Fatal | Fixed: now Fatal |
 | D14 | Malformed HEADER JSON: Drop instead of Fatal | Fixed: now Fatal |
@@ -58,64 +88,50 @@ Confirmed matching across all implementations:
 
 ## Remaining Deficiencies
 
-### Code Quality (from code review agent)
+### Code Quality
 
 | ID | Severity | Description | File:Line |
 |----|----------|-------------|-----------|
-| **Q1** | Critical | `ServiceInfo::socket_addr()` panics on invalid URIs — multiple `.unwrap()` on network data | `service_info/mod.rs:22-28` |
-| **Q2** | Medium | `HashMap` in announce.rs causes non-deterministic v3 class ordering in signed JSON | `announce.rs:39` |
-| **Q3** | Medium | `println!` in library code (should be `log::` macros) | `config.rs:42`, `packet.rs:57` |
-| **Q4** | Low | Unused `futures` dependency | `Cargo.toml:8` |
-| **Q5** | Low | `listener.rs` (342) and `list.rs` (314) exceed 300-line limit | coding standards |
+| **Q5** | Low | `listener.rs` (390) and `list.rs` (314) exceed 300-line limit | coding standards |
 
-### Wire Protocol (Tier 2 — production correctness)
+### Remaining Wire Protocol
 
-| ID | Description | Confirmed by | Ref |
-|----|-------------|-------------|-----|
-| **D5** | No send-side flow control (validate ACKs, pause at 65536, resume) | Perl, JS, C# | Connection.pm:177-183, connection.js:237-250 |
-| **D6** | No connection idle timeout (`_adj_timeout`: busy/pending→no timeout, idle→configured) | Perl, JS | Connection.pm:131-135 |
+| ID | Description | Ref |
+|----|-------------|-----|
+| **D5b** | Send-side flow control: pause/resume at 65536 watermark (ACK validation done, watermark not) | connection.js:298 |
 
-### Discovery / Registry (Tier 2)
+### Remaining Discovery
 
-| ID | Description | Confirmed by | Ref |
-|----|-------------|-------------|-----|
-| **D7** | No cache staleness check (`discovery.cache_max_age` default 120s) | Perl, JS, C# | ServiceManager.pm:83-88 |
-| **D8** | No announcement TTL/expiry (`now + sendInterval * 2.1`) | Perl, JS | ServiceManager.pm:38 |
-| **D9** | No timestamp replay protection (reject older timestamps per identity) | Perl, JS | ServiceManager.pm:33-35 |
-| **D26** | No service deduplication (fingerprint+identity key) | C#, JS | DiscoveryBase.cs:131-146 |
-| **D24** | No multicast receiver/observer | Perl, JS | Observer.pm |
-| **D25** | No cache refresh/reload mechanism (registry is static) | Perl, JS | ServiceManager.pm:68-72 |
+| ID | Description | Ref |
+|----|-------------|-----|
+| **D24** | No multicast receiver/observer | Observer.pm |
+| **D25** | No cache refresh/reload mechanism (registry is static) | ServiceManager.pm:68-72 |
 
-### Service Lifecycle (Tier 2)
+### Remaining Service Lifecycle
 
-| ID | Description | Confirmed by | Ref |
-|----|-------------|-------------|-----|
-| **D10** | No graceful shutdown (drain active requests before close) | Perl, JS, C# | service.js:78-91 |
-| **D11** | No ticket verification (parse, sig verify, expiry, privileges) | JS, Go, C# | ticket.go, ticket.js |
-| **D18** | Per-action timeout from `t600` flags not used (value + 5s) | Perl, JS | ServiceInfo.pm:257-258 |
-| **D29** | Flags not filtered to announceable set during announcement building | Perl | Announcer.pm:103 |
+| ID | Description | Ref |
+|----|-------------|-----|
+| **D10** | No graceful shutdown (drain active requests before close) | service.js:78-91 |
+| **D11** | No ticket verification (parse, sig verify, expiry, privileges) | ticket.go, ticket.js |
+| **D29** | Flags not filtered to announceable set during announcement building | Announcer.pm:103 |
 
-### Config / Behavioral (Tier 3)
+### Remaining Config / API
 
-| ID | Description | Confirmed by | Ref |
-|----|-------------|-------------|-----|
-| **D22** | No `bus_info()` interface resolution (`if:ethN`, auto-detect private IP) | Perl, C# | Config.pm:59-101 |
-| **D23** | Server binds to `0.0.0.0` instead of `service.address` config | Perl, C# | Server.pm:34 |
-| **D28** | No high-level Requester API (lookup+connect+request+JSON) | Perl, JS, C# | Requester.pm:20-43 |
-| **D31** | No `dispatch_failure` / retry on failed dispatch | JS, C# | requester.js:50-58 |
-| **D32** | No service failure tracking / backoff | JS | serviceMgr.js:43-52 |
+| ID | Description | Ref |
+|----|-------------|-----|
+| **D22** | No `bus_info()` interface resolution (`if:ethN`, auto-detect) | Config.pm:59-101 |
+| **D23** | Server binds to `0.0.0.0` instead of `service.address` | Server.pm:34 |
+| **D28** | No high-level Requester API | Requester.pm:20-43 |
+| **D31** | No `dispatch_failure` / retry on failed dispatch | requester.js:50-58 |
+| **D32** | No service failure tracking / backoff | serviceMgr.js:43-52 |
 
-### Test Coverage (from test review agent)
+### Remaining Test Coverage
 
 | ID | Description | Impact |
 |----|-------------|--------|
-| **T1** | Zero tests for server hot path (handle_connection, route_packet, dispatch_and_reply) | Critical: server correctness unverified |
-| **T2** | Zero tests for client request sending (TLS connect, chunking, correlation) | Critical: client correctness unverified |
-| **T3** | No wire protocol packet captures from Perl as test vectors | Critical: no byte-level proof of wire compat |
-| **T4** | `make_auth()` duplicates production logic instead of testing through `load()` | Medium: false confidence |
-| **T5** | `test_cache_file_announcement_iterator` makes zero assertions (always passes) | Medium: dead test |
-| **T6** | `test_fingerprint_of_dev_cert` silently passes when cert missing | Low: should be `#[ignore]` |
-| **T7** | `tests/basic_service.rs` entirely commented out | Low: dead code |
-| **T8** | No shared test helpers/macros for common patterns (packet building, etc.) | Medium: test duplication |
-| **T9** | `service_info_packet_v3_data_parsed.json` fixture unused by any test | Low: dead fixture |
-| **T10** | No tests for RLE decode edge cases in `unrle()` | Medium: complex parser untested |
+| **T1** | Zero tests for server hot path | Critical |
+| **T2** | Zero tests for client request sending | Critical |
+| **T4** | `make_auth()` duplicates production logic | Medium |
+| **T6** | `test_fingerprint_of_dev_cert` silently passes when cert missing | Low |
+| **T8** | No shared test helpers for common patterns | Medium |
+| **T10** | No tests for RLE decode edge cases | Medium |
