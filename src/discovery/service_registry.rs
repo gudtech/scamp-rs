@@ -1,4 +1,5 @@
-use std::{collections::BTreeMap, fs::File};
+use std::collections::{BTreeMap, HashMap};
+use std::fs::File;
 
 use anyhow::Result;
 
@@ -45,11 +46,15 @@ fn make_crud_alias_key(sector: &str, namespace: &str, tag: &str, version: u32) -
 pub struct ServiceRegistry {
     /// Primary index: sector:action.vVERSION → Vec<ActionEntry>
     actions_by_key: BTreeMap<String, Vec<ActionEntry>>,
+    /// Track latest timestamp per service identity for replay protection (D9).
+    /// Key: `fingerprint identity` — Perl ServiceManager.pm:29
+    seen_timestamps: HashMap<String, f64>,
 }
 
 impl ServiceRegistry {
     pub fn new_from_cache(config: &Config) -> Result<Self> {
         let mut actions_by_key: BTreeMap<String, Vec<ActionEntry>> = BTreeMap::new();
+        let mut seen_timestamps: HashMap<String, f64> = HashMap::new();
 
         let cache_path: String = match config.get("discovery.cache_path") {
             Some(Ok(path)) => path,
@@ -87,6 +92,26 @@ impl ServiceRegistry {
             let AnnouncementPacket { body, .. } = packet;
 
             let fingerprint = body.info.fingerprint.as_deref().unwrap_or("");
+
+            // D26: Service deduplication by fingerprint+identity
+            // D9: Timestamp replay protection — reject older timestamps
+            // Perl ServiceManager.pm:29-35
+            let dedup_key = format!("{} {}", fingerprint, body.info.identity);
+            let timestamp = body.params.timestamp;
+            if let Some(&prev_ts) = seen_timestamps.get(&dedup_key) {
+                if timestamp <= prev_ts {
+                    log::debug!("Skipping stale announcement for {} (ts {} <= {})", body.info.identity, timestamp, prev_ts);
+                    continue;
+                }
+                // Newer timestamp: remove old actions for this service
+                for entries in actions_by_key.values_mut() {
+                    entries.retain(|e| {
+                        !(e.service_info.identity == body.info.identity
+                            && e.service_info.fingerprint.as_deref() == Some(fingerprint))
+                    });
+                }
+            }
+            seen_timestamps.insert(dedup_key, timestamp);
 
             for action in &body.actions {
                 // Check authorization (Perl ServiceInfo.pm:141-167)
@@ -135,12 +160,13 @@ impl ServiceRegistry {
             }
         }
 
-        Ok(Self { actions_by_key })
+        Ok(Self { actions_by_key, seen_timestamps })
     }
 
     pub fn empty() -> Self {
         Self {
             actions_by_key: BTreeMap::new(),
+            seen_timestamps: HashMap::new(),
         }
     }
 
