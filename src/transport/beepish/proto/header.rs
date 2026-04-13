@@ -15,7 +15,7 @@ use std::fmt;
 /// - `client_id` — FlexInt (accepts both integer and string JSON)
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PacketHeader {
-    #[serde(default, deserialize_with = "nullable_string", skip_serializing_if = "String::is_empty")]
+    #[serde(default, deserialize_with = "nullable_string")]
     pub action: String,
 
     #[serde(default)]
@@ -33,10 +33,10 @@ pub struct PacketHeader {
     #[serde(default)]
     pub client_id: FlexInt,
 
-    #[serde(default, deserialize_with = "nullable_string", skip_serializing_if = "String::is_empty")]
+    #[serde(default, deserialize_with = "nullable_string")]
     pub ticket: String,
 
-    #[serde(default, deserialize_with = "nullable_string", skip_serializing_if = "String::is_empty")]
+    #[serde(default, deserialize_with = "nullable_string")]
     pub identifying_token: String,
 
     /// Wire format: "request" or "reply". JSON field name is "type".

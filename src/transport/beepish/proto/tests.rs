@@ -64,7 +64,9 @@ fn test_packet_header_json_field_names() {
     assert!(json.contains(r#""envelope":"json""#), "envelope must be lowercase: {json}");
     assert!(!json.contains("error"), "error should be omitted when None: {json}");
     assert!(!json.contains("error_code"), "error_code should be omitted when None: {json}");
-    assert!(!json.contains("identifying_token"), "identifying_token should be omitted when empty: {json}");
+    // D15: action, ticket, identifying_token are always serialized (Perl/Go behavior)
+    assert!(json.contains(r#""identifying_token":"""#), "identifying_token must always be present: {json}");
+    assert!(json.contains(r#""action":"API.Status.health_check""#), "action must always be present: {json}");
 }
 
 #[test]
