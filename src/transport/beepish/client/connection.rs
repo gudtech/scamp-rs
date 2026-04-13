@@ -40,7 +40,7 @@ pub struct ConnectionHandle {
     pending: Arc<Mutex<HashMap<i64, oneshot::Sender<ScampResponse>>>>,
     next_request_id: AtomicI64,
     next_outgoing_msg_no: AtomicU64,
-    closed: AtomicBool,
+    closed: Arc<AtomicBool>,
     reader_handle: tokio::task::JoinHandle<()>,
     writer_handle: tokio::task::JoinHandle<()>,
 }
@@ -116,14 +116,23 @@ impl ConnectionHandle {
         let pending: Arc<Mutex<HashMap<i64, oneshot::Sender<ScampResponse>>>> =
             Arc::new(Mutex::new(HashMap::new()));
 
+        let closed = Arc::new(AtomicBool::new(false));
+
         let writer_handle = tokio::spawn(writer_task(write_half, writer_rx));
-        let reader_handle = tokio::spawn(reader::reader_task(read_half, pending.clone(), writer_tx.clone()));
+        let reader_pending = pending.clone();
+        let reader_writer_tx = writer_tx.clone();
+        let reader_closed = closed.clone();
+        let reader_handle = tokio::spawn(async move {
+            reader::reader_task(read_half, reader_pending, reader_writer_tx).await;
+            // D12: set closed flag when reader exits
+            reader_closed.store(true, Ordering::Relaxed);
+        });
 
         Ok(ConnectionHandle {
             writer_tx, pending,
             next_request_id: AtomicI64::new(1),    // Perl Client.pm:33
             next_outgoing_msg_no: AtomicU64::new(0), // All impls start at 0
-            closed: AtomicBool::new(false),
+            closed,
             reader_handle, writer_handle,
         })
     }
