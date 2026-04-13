@@ -64,7 +64,10 @@ impl Requester {
 
         // D31: If dispatch_failure, mark service failed and retry once
         // JS requester.js:50-58: checks error_data.dispatch_failure
-        let is_dispatch_failure = resp.header.error_data.as_ref()
+        let is_dispatch_failure = resp
+            .header
+            .error_data
+            .as_ref()
             .and_then(|d| d.get("dispatch_failure"))
             .and_then(|v| v.as_bool())
             .unwrap_or(false)

@@ -120,10 +120,8 @@ impl AuthorizedServices {
                 })
                 .collect();
 
-            self.entries.insert(
-                fingerprint.to_string(),
-                AuthEntry { patterns },
-            );
+            self.entries
+                .insert(fingerprint.to_string(), AuthEntry { patterns });
         }
     }
 
@@ -165,9 +163,7 @@ mod tests {
     #[test]
     fn test_all_sectors_authorized() {
         // Matches the real dev authorized_services file format
-        let auth = make_auth(
-            "BC:6E:86 background:ALL, main:ALL, web:ALL",
-        );
+        let auth = make_auth("BC:6E:86 background:ALL, main:ALL, web:ALL");
         assert!(auth.is_authorized("BC:6E:86", "main", "Product.Sku.fetch"));
         assert!(auth.is_authorized("BC:6E:86", "background", "Worker.process"));
         assert!(auth.is_authorized("BC:6E:86", "web", "Page.render"));
@@ -214,9 +210,7 @@ mod tests {
 
     #[test]
     fn test_comment_handling() {
-        let auth = make_auth(
-            "# This is a comment\nFP:AA:BB main:ALL # inline comment",
-        );
+        let auth = make_auth("# This is a comment\nFP:AA:BB main:ALL # inline comment");
         assert!(auth.is_authorized("FP:AA:BB", "main", "Action.test"));
     }
 

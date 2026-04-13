@@ -27,11 +27,8 @@ impl BusInfo {
         let interfaces = get_interface_addrs();
         let default_ip = find_default_ip(&interfaces);
 
-        let service_addrs = resolve_addr_list(
-            config.get::<String>("bus.address"),
-            &interfaces,
-            default_ip,
-        );
+        let service_addrs =
+            resolve_addr_list(config.get::<String>("bus.address"), &interfaces, default_ip);
         let discovery_addrs = resolve_addr_list(
             config.get::<String>("discovery.address"),
             &interfaces,
@@ -57,7 +54,10 @@ impl BusInfo {
 
     /// Primary service address for binding — Perl Server.pm:34.
     pub fn service_addr(&self) -> Ipv4Addr {
-        self.service_addrs.first().copied().unwrap_or(Ipv4Addr::UNSPECIFIED)
+        self.service_addrs
+            .first()
+            .copied()
+            .unwrap_or(Ipv4Addr::UNSPECIFIED)
     }
 }
 
@@ -165,28 +165,16 @@ mod tests {
     fn test_get_interface_addrs_has_loopback() {
         let addrs = get_interface_addrs();
         // Every system has a loopback interface
-        let has_loopback = addrs
-            .values()
-            .flatten()
-            .any(|ip| ip.is_loopback());
+        let has_loopback = addrs.values().flatten().any(|ip| ip.is_loopback());
         assert!(has_loopback, "Should find loopback interface");
     }
 
     #[test]
     fn test_find_default_ip_prefers_private() {
         let mut interfaces = HashMap::new();
-        interfaces.insert(
-            "lo".to_string(),
-            vec![Ipv4Addr::new(127, 0, 0, 1)],
-        );
-        interfaces.insert(
-            "eth0".to_string(),
-            vec![Ipv4Addr::new(10, 0, 0, 5)],
-        );
-        interfaces.insert(
-            "eth1".to_string(),
-            vec![Ipv4Addr::new(192, 168, 1, 100)],
-        );
+        interfaces.insert("lo".to_string(), vec![Ipv4Addr::new(127, 0, 0, 1)]);
+        interfaces.insert("eth0".to_string(), vec![Ipv4Addr::new(10, 0, 0, 5)]);
+        interfaces.insert("eth1".to_string(), vec![Ipv4Addr::new(192, 168, 1, 100)]);
 
         let default = find_default_ip(&interfaces);
         assert_eq!(default, Some(Ipv4Addr::new(10, 0, 0, 5)));
@@ -195,10 +183,7 @@ mod tests {
     #[test]
     fn test_resolve_if_syntax() {
         let mut interfaces = HashMap::new();
-        interfaces.insert(
-            "eth0".to_string(),
-            vec![Ipv4Addr::new(10, 0, 0, 5)],
-        );
+        interfaces.insert("eth0".to_string(), vec![Ipv4Addr::new(10, 0, 0, 5)]);
 
         let addrs = resolve_addr_list(
             Some(Ok::<_, anyhow::Error>("if:eth0".to_string())),

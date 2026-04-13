@@ -30,7 +30,11 @@ impl ObserverConfig {
             .get::<u16>("discovery.port")
             .and_then(|r| r.ok())
             .unwrap_or(5555);
-        ObserverConfig { group, port, interface }
+        ObserverConfig {
+            group,
+            port,
+            interface,
+        }
     }
 }
 
@@ -48,7 +52,9 @@ pub async fn run_observer(
 
     log::info!(
         "Observer listening on {}:{} (interface {})",
-        obs_config.group, obs_config.port, obs_config.interface
+        obs_config.group,
+        obs_config.port,
+        obs_config.interface
     );
 
     loop {

@@ -78,17 +78,12 @@ fn nullable_string<'de, D: Deserializer<'de>>(deserializer: D) -> Result<String,
 
 // ---- EnvelopeFormat ----
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum EnvelopeFormat {
+    #[default]
     Json,
     JsonStore,
     Other(String),
-}
-
-impl Default for EnvelopeFormat {
-    fn default() -> Self {
-        EnvelopeFormat::Json
-    }
 }
 
 impl Serialize for EnvelopeFormat {
@@ -114,16 +109,11 @@ impl<'de> Deserialize<'de> for EnvelopeFormat {
 
 // ---- MessageType ----
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum MessageType {
+    #[default]
     Request,
     Reply,
-}
-
-impl Default for MessageType {
-    fn default() -> Self {
-        MessageType::Request
-    }
 }
 
 impl Serialize for MessageType {

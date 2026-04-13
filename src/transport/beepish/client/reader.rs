@@ -60,9 +60,15 @@ pub(super) async fn reader_task(
                 ParseResult::Success { packet, bytes_used } => {
                     consumed += bytes_used;
                     route_packet(
-                        packet, &mut incoming, &mut next_incoming_msg_no,
-                        &pending, &writer_tx, &outgoing, &ack_notify,
-                    ).await;
+                        packet,
+                        &mut incoming,
+                        &mut next_incoming_msg_no,
+                        &pending,
+                        &writer_tx,
+                        &outgoing,
+                        &ack_notify,
+                    )
+                    .await;
                 }
                 ParseResult::Fatal(err) => {
                     log::error!("Fatal protocol error: {}", err);
@@ -106,12 +112,23 @@ async fn route_packet(
         PacketType::Header => {
             // Perl Connection.pm:140 — validate sequential msgno
             if packet.msg_no != *next_incoming_msg_no {
-                log::error!("Out of sequence: expected {} got {}", *next_incoming_msg_no, packet.msg_no);
+                log::error!(
+                    "Out of sequence: expected {} got {}",
+                    *next_incoming_msg_no,
+                    packet.msg_no
+                );
                 return;
             }
             *next_incoming_msg_no += 1;
             if let Some(header) = packet.packet_header {
-                incoming.insert(packet.msg_no, IncomingMessage { header, body: Vec::new(), received: 0 });
+                incoming.insert(
+                    packet.msg_no,
+                    IncomingMessage {
+                        header,
+                        body: Vec::new(),
+                        received: 0,
+                    },
+                );
             }
         }
         PacketType::Data => {
@@ -119,14 +136,18 @@ async fn route_packet(
                 log::error!("DATA with no active message for msgno {}", packet.msg_no);
                 return;
             };
-            if packet.body.is_empty() { return; } // JS connection.js:202
+            if packet.body.is_empty() {
+                return;
+            } // JS connection.js:202
             msg.body.extend_from_slice(&packet.body);
             msg.received += packet.body.len();
 
             // ACK: cumulative bytes as decimal string (Perl Connection.pm:153)
             let ack = Packet {
-                packet_type: PacketType::Ack, msg_no: packet.msg_no,
-                packet_header: None, body: msg.received.to_string().into_bytes(),
+                packet_type: PacketType::Ack,
+                msg_no: packet.msg_no,
+                packet_header: None,
+                body: msg.received.to_string().into_bytes(),
             };
             let _ = writer_tx.send(ack).await;
         }
@@ -143,7 +164,11 @@ async fn route_packet(
             let request_id = msg.header.request_id.0;
             let mut pend = pending.lock().await;
             if let Some(tx) = pend.remove(&request_id) {
-                let _ = tx.send(ScampResponse { header: msg.header, body: msg.body, error: None });
+                let _ = tx.send(ScampResponse {
+                    header: msg.header,
+                    body: msg.body,
+                    error: None,
+                });
             }
         }
         PacketType::Txerr => {
@@ -161,7 +186,11 @@ async fn route_packet(
             let request_id = msg.header.request_id.0;
             let mut pend = pending.lock().await;
             if let Some(tx) = pend.remove(&request_id) {
-                let _ = tx.send(ScampResponse { header: msg.header, body: msg.body, error: Some(error_text) });
+                let _ = tx.send(ScampResponse {
+                    header: msg.header,
+                    body: msg.body,
+                    error: Some(error_text),
+                });
             }
         }
         PacketType::Ack => {
@@ -177,7 +206,11 @@ async fn route_packet(
             let mut out = outgoing.lock().await;
             if let Some(state) = out.get_mut(&packet.msg_no) {
                 if ack_val <= state.acknowledged {
-                    log::error!("ACK pointer moved backward: {} <= {}", ack_val, state.acknowledged);
+                    log::error!(
+                        "ACK pointer moved backward: {} <= {}",
+                        ack_val,
+                        state.acknowledged
+                    );
                     return;
                 }
                 if ack_val > state.sent {
@@ -190,7 +223,12 @@ async fn route_packet(
             }
         }
         PacketType::Ping => {
-            let pong = Packet { packet_type: PacketType::Pong, msg_no: packet.msg_no, packet_header: None, body: vec![] };
+            let pong = Packet {
+                packet_type: PacketType::Pong,
+                msg_no: packet.msg_no,
+                packet_header: None,
+                body: vec![],
+            };
             let _ = writer_tx.send(pong).await;
         }
         PacketType::Pong => {

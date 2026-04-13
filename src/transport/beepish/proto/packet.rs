@@ -133,9 +133,7 @@ impl Packet {
             "PONG" => PacketType::Pong,
             // Perl Connection.pm:187 — unknown packet type is fatal
             _ => {
-                return ParseResult::Fatal(anyhow!(
-                    "Unexpected packet of type {}", cmd
-                ));
+                return ParseResult::Fatal(anyhow!("Unexpected packet of type {}", cmd));
             }
         };
 
@@ -146,7 +144,8 @@ impl Packet {
                     // Perl Connection.pm:148-149 — malformed header JSON is fatal
                     Err(e) => {
                         return ParseResult::Fatal(anyhow!(
-                            "Malformed JSON in received header: {}", e
+                            "Malformed JSON in received header: {}",
+                            e
                         ));
                     }
                 }

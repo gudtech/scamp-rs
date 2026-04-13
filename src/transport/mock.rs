@@ -22,6 +22,12 @@ pub struct MockClient {
     expect: Mutex<Vec<Expectation>>,
 }
 
+impl Default for MockClient {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MockClient {
     pub fn new() -> Self {
         Self {

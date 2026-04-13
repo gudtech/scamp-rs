@@ -18,6 +18,7 @@ use super::server_connection;
 
 /// SCAMP service that listens for incoming connections and dispatches requests.
 pub struct ScampService {
+    #[allow(dead_code)] // Used in identity format, will be needed for config
     name: String,
     identity: String,
     sector: String,
@@ -147,8 +148,7 @@ impl ScampService {
         let key_pem = self.key_pem.as_ref().ok_or_else(|| anyhow!("No key"))?;
         let cert_pem = self.cert_pem.as_ref().ok_or_else(|| anyhow!("No cert"))?;
         let uri = self.uri().ok_or_else(|| anyhow!("Not bound"))?;
-        let action_infos: Vec<ActionInfo> =
-            self.actions.values().map(ActionInfo::from).collect();
+        let action_infos: Vec<ActionInfo> = self.actions.values().map(ActionInfo::from).collect();
 
         announce::build_announcement_packet(
             &self.identity,
@@ -158,18 +158,15 @@ impl ScampService {
             &action_infos,
             key_pem,
             cert_pem,
-            1,  // weight
-            5,  // interval_secs
+            1, // weight
+            5, // interval_secs
             active,
         )
     }
 
     /// Run the service: accept connections until shutdown signal.
     /// JS service.js:78-91: suspend announcer, drain active requests, then exit.
-    pub async fn run(
-        self,
-        mut shutdown_rx: tokio::sync::watch::Receiver<bool>,
-    ) -> Result<()> {
+    pub async fn run(self, mut shutdown_rx: tokio::sync::watch::Receiver<bool>) -> Result<()> {
         let listener = self
             .listener
             .ok_or_else(|| anyhow!("Not bound — call bind_pem() first"))?;
@@ -215,8 +212,7 @@ impl ScampService {
         let active = active_connections.load(Ordering::Relaxed);
         if active > 0 {
             log::info!("Draining {} active connection(s)...", active);
-            let deadline = tokio::time::Instant::now()
-                + std::time::Duration::from_secs(30);
+            let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(30);
             while active_connections.load(Ordering::Relaxed) > 0
                 && tokio::time::Instant::now() < deadline
             {

@@ -32,7 +32,11 @@ impl ServeCommand {
 
         // Register a simple echo action for testing
         service.register("ScampRsTest.echo", 1, |req| async move {
-            println!("  * Received request: action={} body_len={}", req.action, req.body.len());
+            println!(
+                "  * Received request: action={} body_len={}",
+                req.action,
+                req.body.len()
+            );
             ScampReply::ok(req.body)
         });
 
@@ -80,7 +84,9 @@ impl ServeCommand {
         } else if !bind_ip.is_unspecified() {
             bind_ip.to_string()
         } else {
-            detect_announce_ip().await.unwrap_or_else(|| "127.0.0.1".into())
+            detect_announce_ip()
+                .await
+                .unwrap_or_else(|| "127.0.0.1".into())
         };
         service.set_announce_ip(&announce_ip);
 
@@ -94,7 +100,10 @@ impl ServeCommand {
 
         println!(
             "  * Multicast: {}:{} every {}s via {}",
-            mcast_config.group, mcast_config.port, mcast_config.interval_secs, mcast_config.interface
+            mcast_config.group,
+            mcast_config.port,
+            mcast_config.interval_secs,
+            mcast_config.interface
         );
 
         // Shutdown signal — cloned for announcer and listener
@@ -128,13 +137,13 @@ impl ServeCommand {
             tokio::spawn(async move {
                 let build_fn = move |active: bool| -> anyhow::Result<Vec<u8>> {
                     scamp::service::announce_raw(
-                        &identity, &sector, &envelopes, &uri, &actions,
-                        &key, &cert, active,
+                        &identity, &sector, &envelopes, &uri, &actions, &key, &cert, active,
                     )
                 };
-                if let Err(e) = scamp::service::multicast::run_announcer(
-                    mcast_config, build_fn, shutdown_rx,
-                ).await {
+                if let Err(e) =
+                    scamp::service::multicast::run_announcer(mcast_config, build_fn, shutdown_rx)
+                        .await
+                {
                     log::error!("Announcer failed: {}", e);
                 }
             })

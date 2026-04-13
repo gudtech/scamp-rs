@@ -3,21 +3,51 @@ use super::*;
 
 #[test]
 fn test_envelope_format_serde() {
-    assert_eq!(serde_json::to_string(&EnvelopeFormat::Json).unwrap(), r#""json""#);
-    assert_eq!(serde_json::to_string(&EnvelopeFormat::JsonStore).unwrap(), r#""jsonstore""#);
-    assert_eq!(serde_json::to_string(&EnvelopeFormat::Other("extdirect".into())).unwrap(), r#""extdirect""#);
+    assert_eq!(
+        serde_json::to_string(&EnvelopeFormat::Json).unwrap(),
+        r#""json""#
+    );
+    assert_eq!(
+        serde_json::to_string(&EnvelopeFormat::JsonStore).unwrap(),
+        r#""jsonstore""#
+    );
+    assert_eq!(
+        serde_json::to_string(&EnvelopeFormat::Other("extdirect".into())).unwrap(),
+        r#""extdirect""#
+    );
 
-    assert_eq!(serde_json::from_str::<EnvelopeFormat>(r#""json""#).unwrap(), EnvelopeFormat::Json);
-    assert_eq!(serde_json::from_str::<EnvelopeFormat>(r#""jsonstore""#).unwrap(), EnvelopeFormat::JsonStore);
-    assert_eq!(serde_json::from_str::<EnvelopeFormat>(r#""web""#).unwrap(), EnvelopeFormat::Other("web".into()));
+    assert_eq!(
+        serde_json::from_str::<EnvelopeFormat>(r#""json""#).unwrap(),
+        EnvelopeFormat::Json
+    );
+    assert_eq!(
+        serde_json::from_str::<EnvelopeFormat>(r#""jsonstore""#).unwrap(),
+        EnvelopeFormat::JsonStore
+    );
+    assert_eq!(
+        serde_json::from_str::<EnvelopeFormat>(r#""web""#).unwrap(),
+        EnvelopeFormat::Other("web".into())
+    );
 }
 
 #[test]
 fn test_message_type_serde() {
-    assert_eq!(serde_json::to_string(&MessageType::Request).unwrap(), r#""request""#);
-    assert_eq!(serde_json::to_string(&MessageType::Reply).unwrap(), r#""reply""#);
-    assert_eq!(serde_json::from_str::<MessageType>(r#""request""#).unwrap(), MessageType::Request);
-    assert_eq!(serde_json::from_str::<MessageType>(r#""reply""#).unwrap(), MessageType::Reply);
+    assert_eq!(
+        serde_json::to_string(&MessageType::Request).unwrap(),
+        r#""request""#
+    );
+    assert_eq!(
+        serde_json::to_string(&MessageType::Reply).unwrap(),
+        r#""reply""#
+    );
+    assert_eq!(
+        serde_json::from_str::<MessageType>(r#""request""#).unwrap(),
+        MessageType::Request
+    );
+    assert_eq!(
+        serde_json::from_str::<MessageType>(r#""reply""#).unwrap(),
+        MessageType::Reply
+    );
 }
 
 #[test]
@@ -61,13 +91,31 @@ fn test_packet_header_json_field_names() {
     };
 
     let json = serde_json::to_string(&hdr).unwrap();
-    assert!(json.contains(r#""type":"request""#), "must use 'type' not 'message_type': {json}");
-    assert!(json.contains(r#""envelope":"json""#), "envelope must be lowercase: {json}");
-    assert!(!json.contains("error"), "error should be omitted when None: {json}");
-    assert!(!json.contains("error_code"), "error_code should be omitted when None: {json}");
+    assert!(
+        json.contains(r#""type":"request""#),
+        "must use 'type' not 'message_type': {json}"
+    );
+    assert!(
+        json.contains(r#""envelope":"json""#),
+        "envelope must be lowercase: {json}"
+    );
+    assert!(
+        !json.contains("error"),
+        "error should be omitted when None: {json}"
+    );
+    assert!(
+        !json.contains("error_code"),
+        "error_code should be omitted when None: {json}"
+    );
     // D15: action, ticket, identifying_token are always serialized (Perl/Go behavior)
-    assert!(json.contains(r#""identifying_token":"""#), "identifying_token must always be present: {json}");
-    assert!(json.contains(r#""action":"API.Status.health_check""#), "action must always be present: {json}");
+    assert!(
+        json.contains(r#""identifying_token":"""#),
+        "identifying_token must always be present: {json}"
+    );
+    assert!(
+        json.contains(r#""action":"API.Status.health_check""#),
+        "action must always be present: {json}"
+    );
 }
 
 #[test]
@@ -179,7 +227,11 @@ fn test_packet_parse_need_bytes() {
 fn test_header_with_null_ticket() {
     let json = r#"{"action":"ScampRsTest.echo","version":1,"envelope":"json","ticket":null,"type":"request","request_id":1}"#;
     let result: Result<PacketHeader, _> = serde_json::from_str(json);
-    assert!(result.is_ok(), "ticket:null should deserialize, got: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "ticket:null should deserialize, got: {:?}",
+        result.err()
+    );
 }
 
 /// Some implementations may send identifying_token:null too.
@@ -187,7 +239,11 @@ fn test_header_with_null_ticket() {
 fn test_header_with_null_identifying_token() {
     let json = r#"{"action":"test","version":1,"envelope":"json","identifying_token":null,"type":"request","request_id":1}"#;
     let result: Result<PacketHeader, _> = serde_json::from_str(json);
-    assert!(result.is_ok(), "identifying_token:null should deserialize, got: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "identifying_token:null should deserialize, got: {:?}",
+        result.err()
+    );
 }
 
 /// Perl Connection.pm:46 requires \r\n — bare \n must be rejected.

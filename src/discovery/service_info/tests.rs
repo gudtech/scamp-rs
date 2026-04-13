@@ -15,7 +15,10 @@ fn test_parse() {
     assert!(!info.actions.is_empty());
 
     for action in &info.actions {
-        assert_eq!(action.pathver, format!("{}~{}", action.path, action.version));
+        assert_eq!(
+            action.pathver,
+            format!("{}~{}", action.path, action.version)
+        );
     }
 }
 

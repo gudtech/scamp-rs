@@ -64,10 +64,7 @@ pub fn build_announcement_packet(
             // All actions go into v3 compat zone (no custom sector/envelopes yet)
             // Perl Announcer.pm:141-148
             let cls = v3_class_map.entry(namespace.to_string()).or_default();
-            let mut action_arr = vec![
-                Value::String(method.to_string()),
-                Value::String(flags),
-            ];
+            let mut action_arr = vec![Value::String(method.to_string()), Value::String(flags)];
             if action.version != 1 {
                 action_arr.push(json!(action.version));
             }
@@ -116,7 +113,11 @@ pub fn build_announcement_packet(
         interval_ms,
         uri,
         env_plus_v4,
-        if v3_classes.is_empty() { Value::Null } else { Value::Array(v3_classes) },
+        if v3_classes.is_empty() {
+            Value::Null
+        } else {
+            Value::Array(v3_classes)
+        },
         timestamp,
     ]);
 
@@ -125,8 +126,7 @@ pub fn build_announcement_packet(
     // Sign with RSA SHA256 PKCS1v15 — Perl Announcer.pm:196-197
     let rsa_key = openssl::rsa::Rsa::private_key_from_pem(key_pem)?;
     let pkey = openssl::pkey::PKey::from_rsa(rsa_key)?;
-    let mut signer =
-        openssl::sign::Signer::new(openssl::hash::MessageDigest::sha256(), &pkey)?;
+    let mut signer = openssl::sign::Signer::new(openssl::hash::MessageDigest::sha256(), &pkey)?;
     signer.set_rsa_padding(openssl::rsa::Padding::PKCS1)?;
     signer.update(json_blob.as_bytes())?;
     let signature = signer.sign_to_vec()?;
@@ -202,7 +202,14 @@ mod tests {
 
     #[test]
     fn test_rle_encode_strings() {
-        let items = vec!["a".into(), "a".into(), "b".into(), "c".into(), "c".into(), "c".into()];
+        let items = vec![
+            "a".into(),
+            "a".into(),
+            "b".into(),
+            "c".into(),
+            "c".into(),
+            "c".into(),
+        ];
         let rle = rle_encode_strings(&items);
         assert_eq!(rle, vec![json!([2, "a"]), json!("b"), json!([3, "c"])]);
     }
@@ -240,8 +247,16 @@ mod tests {
         let cert_pem = std::fs::read(format!("{}/GT/backplane/devkeys/dev.crt", home)).unwrap();
 
         let actions = vec![
-            ActionInfo { name: "ScampRsTest.echo".into(), version: 1, flags: vec![] },
-            ActionInfo { name: "ScampRsTest.health_check".into(), version: 1, flags: vec![] },
+            ActionInfo {
+                name: "ScampRsTest.echo".into(),
+                version: 1,
+                flags: vec![],
+            },
+            ActionInfo {
+                name: "ScampRsTest.health_check".into(),
+                version: 1,
+                flags: vec![],
+            },
         ];
 
         let packet = build_announcement_packet(
@@ -252,8 +267,11 @@ mod tests {
             &actions,
             &key_pem,
             &cert_pem,
-            1, 5, true,
-        ).unwrap();
+            1,
+            5,
+            true,
+        )
+        .unwrap();
 
         let packet_str = String::from_utf8(packet).unwrap();
 
@@ -272,6 +290,9 @@ mod tests {
         // The envelopes array should contain "json" and a v4 hash object
         let json_val: serde_json::Value = serde_json::from_str(&ann.json_blob).unwrap();
         let env_array = json_val.as_array().unwrap()[6].as_array().unwrap();
-        assert!(env_array.iter().any(|v| v.is_object()), "Should contain v4 extension hash");
+        assert!(
+            env_array.iter().any(|v| v.is_object()),
+            "Should contain v4 extension hash"
+        );
     }
 }

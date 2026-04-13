@@ -25,7 +25,6 @@ pub fn announce_raw(
     active: bool,
 ) -> anyhow::Result<Vec<u8>> {
     announce::build_announcement_packet(
-        identity, sector, envelopes, uri, actions,
-        key_pem, cert_pem, 1, 5, active,
+        identity, sector, envelopes, uri, actions, key_pem, cert_pem, 1, 5, active,
     )
 }

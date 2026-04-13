@@ -80,7 +80,10 @@ impl ServiceRegistry {
     /// Perl ServiceManager.pm:inject()
     pub fn inject_packet(&mut self, packet: AnnouncementPacket, auth: &AuthorizedServices) {
         if !packet.signature_is_valid() {
-            log::debug!("Skipping announcement with invalid signature: {}", packet.body.info.identity);
+            log::debug!(
+                "Skipping announcement with invalid signature: {}",
+                packet.body.info.identity
+            );
             return;
         }
         let body = packet.body;
@@ -97,7 +100,9 @@ impl ServiceRegistry {
         let dedup_key = format!("{} {}", fingerprint, body.info.identity);
         let timestamp = body.params.timestamp;
         if let Some(&prev_ts) = self.seen_timestamps.get(&dedup_key) {
-            if timestamp <= prev_ts { return; }
+            if timestamp <= prev_ts {
+                return;
+            }
             for entries in self.actions_by_key.values_mut() {
                 entries.retain(|e| {
                     !(e.service_info.identity == body.info.identity
@@ -119,21 +124,31 @@ impl ServiceRegistry {
             self.actions_by_key.entry(key).or_default().push(entry);
 
             // CRUD aliases
-            let namespace = action.path.rsplit_once('.').map(|(ns, _)| ns).unwrap_or(&action.path);
+            let namespace = action
+                .path
+                .rsplit_once('.')
+                .map(|(ns, _)| ns)
+                .unwrap_or(&action.path);
             for flag in &action.flags {
                 if let Flag::CrudOp(op) = flag {
                     let tag = match op {
-                        CrudOp::Create => "create", CrudOp::Read => "read",
-                        CrudOp::Update => "update", CrudOp::Delete => "destroy",
+                        CrudOp::Create => "create",
+                        CrudOp::Read => "read",
+                        CrudOp::Update => "update",
+                        CrudOp::Delete => "destroy",
                     };
-                    let alias_key = make_crud_alias_key(&action.sector, namespace, tag, action.version);
+                    let alias_key =
+                        make_crud_alias_key(&action.sector, namespace, tag, action.version);
                     let alias_entry = ActionEntry {
                         service_info: body.info.clone(),
                         announcement_params: body.params.clone(),
                         action: action.clone(),
                         authorized: true,
                     };
-                    self.actions_by_key.entry(alias_key).or_default().push(alias_entry);
+                    self.actions_by_key
+                        .entry(alias_key)
+                        .or_default()
+                        .push(alias_entry);
                 }
             }
         }
@@ -155,9 +170,8 @@ impl ServiceRegistry {
             _ => AuthorizedServices::empty(),
         };
 
-        let mut file = File::open(&cache_path).map_err(|e| {
-            anyhow::anyhow!("Failed to open cache {}: {}", cache_path, e)
-        })?;
+        let mut file = File::open(&cache_path)
+            .map_err(|e| anyhow::anyhow!("Failed to open cache {}: {}", cache_path, e))?;
 
         // D7: Cache staleness check — Perl ServiceManager.pm:83-88
         let cache_max_age: u64 = config
@@ -168,7 +182,11 @@ impl ServiceRegistry {
             if let Ok(modified) = metadata.modified() {
                 let age = modified.elapsed().unwrap_or_default();
                 if age.as_secs() > cache_max_age {
-                    log::warn!("Discovery cache stale ({:.0}s old, max {}s)", age.as_secs(), cache_max_age);
+                    log::warn!(
+                        "Discovery cache stale ({:.0}s old, max {}s)",
+                        age.as_secs(),
+                        cache_max_age
+                    );
                 }
             }
         }
@@ -176,10 +194,8 @@ impl ServiceRegistry {
         self.actions_by_key.clear();
         self.seen_timestamps.clear();
 
-        for packet_result in CacheFileAnnouncementIterator::new(&mut file) {
-            if let Ok(packet) = packet_result {
-                self.inject_packet(packet, &auth);
-            }
+        for packet in CacheFileAnnouncementIterator::new(&mut file).flatten() {
+            self.inject_packet(packet, &auth);
         }
         Ok(())
     }
@@ -216,10 +232,15 @@ impl ServiceRegistry {
     pub fn mark_failed(&self, identity: &str) {
         let now = now_secs();
         let mut failures = self.failures.lock().unwrap();
-        let state = failures.entry(identity.to_string()).or_insert_with(|| {
-            ServiceFailureState { failure_times: Vec::new(), reactivate_at: 0 }
-        });
-        state.failure_times.retain(|&t| t >= now.saturating_sub(86400));
+        let state = failures
+            .entry(identity.to_string())
+            .or_insert_with(|| ServiceFailureState {
+                failure_times: Vec::new(),
+                reactivate_at: 0,
+            });
+        state
+            .failure_times
+            .retain(|&t| t >= now.saturating_sub(86400));
         state.failure_times.push(now);
         let minutes = state.failure_times.len().min(60) as u64;
         state.reactivate_at = now + minutes * 60;
@@ -232,9 +253,15 @@ impl ServiceRegistry {
     /// Find action by sector, name, version, envelope.
     /// Perl ServiceInfo.pm:254. D31/D32: Prefers healthy services.
     pub fn find_action_with_envelope(
-        &self, sector: &str, action: &str, version: u32, envelope: &str,
+        &self,
+        sector: &str,
+        action: &str,
+        version: u32,
+        envelope: &str,
     ) -> Option<&ActionEntry> {
-        let entries = self.actions_by_key.get(&make_index_key(sector, action, version).to_lowercase())?;
+        let entries = self
+            .actions_by_key
+            .get(&make_index_key(sector, action, version).to_lowercase())?;
         let candidates: Vec<_> = entries
             .iter()
             .filter(|e| {
@@ -248,15 +275,25 @@ impl ServiceRegistry {
 
     /// Select a random entry, preferring healthy over failed services.
     fn pick_healthy<'a>(&self, candidates: &[&'a ActionEntry]) -> Option<&'a ActionEntry> {
-        if candidates.is_empty() { return None; }
+        if candidates.is_empty() {
+            return None;
+        }
         let now = now_secs();
         let failures = self.failures.lock().unwrap();
         let (healthy, failing): (Vec<_>, Vec<_>) = candidates
             .iter()
             .partition(|e| !is_failed(&failures, &e.service_info.identity, now));
         drop(failures);
-        let pool = if healthy.is_empty() { &failing } else { &healthy };
-        if pool.is_empty() { None } else { Some(pool[rand::random::<usize>() % pool.len()]) }
+        let pool = if healthy.is_empty() {
+            &failing
+        } else {
+            &healthy
+        };
+        if pool.is_empty() {
+            None
+        } else {
+            Some(pool[rand::random::<usize>() % pool.len()])
+        }
     }
 
     /// Get the old-style pathver key (action~version) for backward compat with CLI.
@@ -277,12 +314,8 @@ fn now_secs() -> u64 {
 }
 
 /// Check if a service is currently marked as failed.
-fn is_failed(
-    failures: &HashMap<String, ServiceFailureState>,
-    identity: &str,
-    now: u64,
-) -> bool {
+fn is_failed(failures: &HashMap<String, ServiceFailureState>, identity: &str, now: u64) -> bool {
     failures
         .get(identity)
-        .map_or(false, |state| now < state.reactivate_at)
+        .is_some_and(|state| now < state.reactivate_at)
 }

@@ -54,7 +54,10 @@ impl AnnouncementPacket {
 
         if let Some(not_empty) = parts.next() {
             if !not_empty.is_empty() {
-                log::warn!("Announcement has extra parts after signature: {:?}", not_empty);
+                log::warn!(
+                    "Announcement has extra parts after signature: {:?}",
+                    not_empty
+                );
                 return Err(AnnouncementParseError::TooManyParts);
             }
         }
@@ -85,13 +88,23 @@ impl AnnouncementPacket {
         ) {
             Ok(valid) => {
                 if !valid {
-                    log::warn!("Signature verification returned false for {}", self.body.info.identity);
+                    log::warn!(
+                        "Signature verification returned false for {}",
+                        self.body.info.identity
+                    );
                 }
                 valid
             }
             Err(e) => {
-                log::error!("Signature verification error for {}: {}", self.body.info.identity, e);
-                eprintln!("Signature verification error for {}: {}", self.body.info.identity, e);
+                log::error!(
+                    "Signature verification error for {}: {}",
+                    self.body.info.identity,
+                    e
+                );
+                eprintln!(
+                    "Signature verification error for {}: {}",
+                    self.body.info.identity, e
+                );
                 false
             }
         }
@@ -128,7 +141,10 @@ mod tests {
         let fp = announcement.body.info.fingerprint.as_ref().unwrap();
         // Fingerprint should be colon-separated uppercase hex
         assert!(fp.contains(':'));
-        assert!(fp.chars().filter(|c| c.is_ascii_alphabetic()).all(|c| c.is_ascii_uppercase()));
+        assert!(fp
+            .chars()
+            .filter(|c| c.is_ascii_alphabetic())
+            .all(|c| c.is_ascii_uppercase()));
     }
 
     /// Verify ALL announcements in the live discovery cache have valid signatures.
@@ -141,8 +157,7 @@ mod tests {
 
         let home = std::env::var("HOME").unwrap_or_default();
         let cache_path = format!("{}/GT/backplane/discovery/discovery", home);
-        let file = std::fs::File::open(&cache_path)
-            .expect("Discovery cache not found");
+        let file = std::fs::File::open(&cache_path).expect("Discovery cache not found");
 
         // Find the first valid announcement
         let mut valid_raw = None;
@@ -194,13 +209,15 @@ mod tests {
                         println!(
                             "  ✓ {} ({})",
                             announcement.body.info.identity,
-                            announcement.body.info.fingerprint.as_deref().unwrap_or("no fp")
+                            announcement
+                                .body
+                                .info
+                                .fingerprint
+                                .as_deref()
+                                .unwrap_or("no fp")
                         );
                     } else {
-                        println!(
-                            "  ✗ {} SIGNATURE INVALID",
-                            announcement.body.info.identity
-                        );
+                        println!("  ✗ {} SIGNATURE INVALID", announcement.body.info.identity);
                     }
                 }
                 Err(e) => {
@@ -214,7 +231,10 @@ mod tests {
             "\n{} total, {} verified, {} parse errors",
             total, verified, parse_errors
         );
-        assert!(verified > 0, "No announcements verified — is the dev environment running?");
+        assert!(
+            verified > 0,
+            "No announcements verified — is the dev environment running?"
+        );
         assert_eq!(
             verified,
             total - parse_errors,

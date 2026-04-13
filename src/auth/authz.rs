@@ -43,11 +43,7 @@ impl AuthzChecker {
     /// Verify ticket and check privileges for the given action.
     /// JS ticket.js:71-93 (checkAccess).
     /// Returns Ok(ticket) on success, Err on invalid ticket or missing privileges.
-    pub async fn check_access(
-        &self,
-        action: &str,
-        ticket_str: &str,
-    ) -> Result<Ticket> {
+    pub async fn check_access(&self, action: &str, ticket_str: &str) -> Result<Ticket> {
         // 1. Verify ticket signature and expiry
         let ticket = Ticket::verify(ticket_str, &self.ticket_verify_key)?;
 
@@ -61,7 +57,8 @@ impl AuthzChecker {
                 if !ticket.has_privilege(priv_id) {
                     return Err(anyhow!(
                         "Missing required privilege {} for action {}",
-                        priv_id, action
+                        priv_id,
+                        action
                     ));
                 }
             }
@@ -121,10 +118,7 @@ fn parse_authz_response(body: &[u8]) -> Result<HashMap<String, Vec<u64>>> {
             continue;
         }
         if let Some(arr) = value.as_array() {
-            let privs: Vec<u64> = arr
-                .iter()
-                .filter_map(|v| v.as_u64())
-                .collect();
+            let privs: Vec<u64> = arr.iter().filter_map(|v| v.as_u64()).collect();
             table.insert(key.to_lowercase(), privs);
         }
     }

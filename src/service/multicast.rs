@@ -139,7 +139,10 @@ where
     }
 
     // Shutdown announcing: weight=0, 10 rounds at 1s — Perl Announcer.pm:82-94,97-101
-    log::info!("Sending shutdown announcements (weight=0, {} rounds)", SHUTDOWN_ROUNDS);
+    log::info!(
+        "Sending shutdown announcements (weight=0, {} rounds)",
+        SHUTDOWN_ROUNDS
+    );
     for round in 1..=SHUTDOWN_ROUNDS {
         let packet = build_packet(false)?;
         let compressed = zlib_compress(&packet)?;

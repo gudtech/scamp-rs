@@ -49,7 +49,7 @@ impl<R: Read> Iterator for CacheFileAnnouncementIterator<R> {
 
             self.reader.consume(consume);
 
-            if matched && announcement_data.len() > 0 {
+            if matched && !announcement_data.is_empty() {
                 match String::from_utf8(announcement_data) {
                     Ok(data) => return Some(AnnouncementPacket::parse(&data).map_err(Into::into)),
                     Err(e) => return Some(Err(e.into())),
@@ -70,9 +70,15 @@ mod tests {
         let cache_file = File::open("samples/discovery_cache_file").unwrap();
         let iterator = CacheFileAnnouncementIterator::new(cache_file);
         let announcements: Vec<_> = iterator.collect();
-        assert!(!announcements.is_empty(), "Should parse at least one announcement");
+        assert!(
+            !announcements.is_empty(),
+            "Should parse at least one announcement"
+        );
         // At least one should parse successfully
         let ok_count = announcements.iter().filter(|a| a.is_ok()).count();
-        assert!(ok_count > 0, "At least one announcement should parse successfully");
+        assert!(
+            ok_count > 0,
+            "At least one announcement should parse successfully"
+        );
     }
 }

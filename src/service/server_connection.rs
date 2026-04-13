@@ -28,7 +28,10 @@ type ServerWriter = Arc<Mutex<Box<dyn AsyncWrite + Unpin + Send>>>;
 
 /// Tracks bytes sent/acknowledged for outgoing replies (D5 flow control).
 #[derive(Debug, Default)]
-struct OutgoingReplyState { sent: u64, acknowledged: u64 }
+struct OutgoingReplyState {
+    sent: u64,
+    acknowledged: u64,
+}
 
 /// Handle a single server connection: read packets, dispatch requests, send replies.
 /// Accepts any async stream for testability (production passes TLS streams).
@@ -79,10 +82,7 @@ pub(crate) async fn handle_connection(
             match Packet::parse(&buf[consumed..]) {
                 ParseResult::TooShort | ParseResult::NeedBytes { .. } => break,
                 ParseResult::Drop { bytes_used } => consumed += bytes_used,
-                ParseResult::Success {
-                    packet,
-                    bytes_used,
-                } => {
+                ParseResult::Success { packet, bytes_used } => {
                     consumed += bytes_used;
                     route_packet(
                         packet,
@@ -153,7 +153,9 @@ async fn route_packet(
                     log::error!("Failed to write ACK: {}", e);
                     return;
                 }
-                if let Err(e) = w.flush().await { log::error!("Flush failed: {}", e); return; }
+                if let Err(e) = w.flush().await {
+                    log::error!("Flush failed: {}", e);
+                }
             }
         }
         PacketType::Eof => {
@@ -191,11 +193,7 @@ async fn route_packet(
                     return;
                 }
                 if ack_val > state.sent {
-                    log::error!(
-                        "ACK pointer past end: {} > sent {}",
-                        ack_val,
-                        state.sent
-                    );
+                    log::error!("ACK pointer past end: {} > sent {}", ack_val, state.sent);
                     return;
                 }
                 state.acknowledged = ack_val;
@@ -209,8 +207,13 @@ async fn route_packet(
                 body: vec![],
             };
             let mut w = writer.lock().await;
-            if let Err(e) = pong.write(&mut *w).await { log::error!("Failed to write PONG: {}", e); return; }
-            if let Err(e) = w.flush().await { log::error!("Flush failed: {}", e); return; }
+            if let Err(e) = pong.write(&mut *w).await {
+                log::error!("Failed to write PONG: {}", e);
+                return;
+            }
+            if let Err(e) = w.flush().await {
+                log::error!("Flush failed: {}", e);
+            }
         }
         PacketType::Pong => {}
     }
@@ -233,12 +236,16 @@ async fn dispatch_and_reply(
 
     // C1: Check ticket privileges before dispatch — JS ticket.js:71-93
     // Skip for actions with "noauth" flag, or if no AuthzChecker configured.
-    let noauth = actions.get(&action_key)
+    let noauth = actions
+        .get(&action_key)
         .map(|a| a.flags.iter().any(|f| f == "noauth"))
         .unwrap_or(false);
     if let Some(checker) = authz {
         if !noauth && !msg.header.ticket.is_empty() {
-            if let Err(e) = checker.check_access(&msg.header.action, &msg.header.ticket).await {
+            if let Err(e) = checker
+                .check_access(&msg.header.action, &msg.header.ticket)
+                .await
+            {
                 log::warn!("Authorization denied for {}: {}", action_key, e);
                 let reply = ScampReply::error(e.to_string(), "unauthorized".to_string());
                 send_reply(reply, request_id, next_outgoing_msg_no, outgoing, writer).await;
@@ -296,8 +303,10 @@ async fn send_reply(
 
     let mut w = writer.lock().await;
     let header_pkt = Packet {
-        packet_type: PacketType::Header, msg_no: reply_msg_no,
-        packet_header: Some(reply_header), body: vec![],
+        packet_type: PacketType::Header,
+        msg_no: reply_msg_no,
+        packet_header: Some(reply_header),
+        body: vec![],
     };
     if let Err(e) = header_pkt.write(&mut *w).await {
         log::error!("Failed to write reply HEADER: {}", e);
@@ -310,26 +319,34 @@ async fn send_reply(
         let end = (offset + DATA_CHUNK_SIZE).min(reply.body.len());
         let chunk_len = (end - offset) as u64;
         let data_pkt = Packet {
-            packet_type: PacketType::Data, msg_no: reply_msg_no,
-            packet_header: None, body: reply.body[offset..end].to_vec(),
+            packet_type: PacketType::Data,
+            msg_no: reply_msg_no,
+            packet_header: None,
+            body: reply.body[offset..end].to_vec(),
         };
         if let Err(e) = data_pkt.write(&mut *w).await {
             log::error!("Failed to write reply DATA: {}", e);
             outgoing.remove(&reply_msg_no);
             return;
         }
-        if let Some(state) = outgoing.get_mut(&reply_msg_no) { state.sent += chunk_len; }
+        if let Some(state) = outgoing.get_mut(&reply_msg_no) {
+            state.sent += chunk_len;
+        }
         offset = end;
     }
 
     let eof_pkt = Packet {
-        packet_type: PacketType::Eof, msg_no: reply_msg_no,
-        packet_header: None, body: vec![],
+        packet_type: PacketType::Eof,
+        msg_no: reply_msg_no,
+        packet_header: None,
+        body: vec![],
     };
     if let Err(e) = eof_pkt.write(&mut *w).await {
         log::error!("Failed to write reply EOF: {}", e);
     }
-    if let Err(e) = w.flush().await { log::error!("Reply flush failed: {}", e); }
+    if let Err(e) = w.flush().await {
+        log::error!("Reply flush failed: {}", e);
+    }
 
     outgoing.remove(&reply_msg_no);
 }

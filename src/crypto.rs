@@ -21,10 +21,7 @@ pub fn cert_sha1_fingerprint(cert_der: &[u8]) -> String {
 /// Decode PEM to DER bytes (strips headers, base64 decodes).
 /// Handles certificates and other PEM-encoded data.
 pub fn pem_to_der(pem: &str) -> Result<Vec<u8>> {
-    let lines: Vec<&str> = pem
-        .lines()
-        .filter(|l| !l.starts_with("-----"))
-        .collect();
+    let lines: Vec<&str> = pem.lines().filter(|l| !l.starts_with("-----")).collect();
     let b64 = lines.join("");
     base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &b64)
         .map_err(|e| anyhow!("base64 decode failed: {}", e))
@@ -51,7 +48,8 @@ pub fn verify_rsa_sha256(cert_pem: &str, message: &[u8], signature_base64: &str)
     let cert_pem_trimmed = cert_pem.trim();
     let x509 = X509::from_pem(cert_pem_trimmed.as_bytes())
         .map_err(|e| anyhow!("Failed to parse certificate PEM: {}", e))?;
-    let pubkey = x509.public_key()
+    let pubkey = x509
+        .public_key()
         .map_err(|e| anyhow!("Failed to extract public key: {}", e))?;
 
     // Decode the base64 signature (handle both line-wrapped and single-line)
@@ -61,7 +59,13 @@ pub fn verify_rsa_sha256(cert_pem: &str, message: &[u8], signature_base64: &str)
         .filter(|c| !c.is_whitespace())
         .collect();
     let signature = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &sig_clean)
-        .map_err(|e| anyhow!("Failed to decode signature base64 ({} chars): {}", sig_clean.len(), e))?;
+        .map_err(|e| {
+            anyhow!(
+                "Failed to decode signature base64 ({} chars): {}",
+                sig_clean.len(),
+                e
+            )
+        })?;
 
     // Verify with PKCS1v15 SHA256
     let mut verifier = Verifier::new(MessageDigest::sha256(), &pubkey)
@@ -76,7 +80,12 @@ pub fn verify_rsa_sha256(cert_pem: &str, message: &[u8], signature_base64: &str)
         Err(e) => {
             // OpenSSL verify error — this means the signature format was valid
             // but the content didn't match
-            Err(anyhow!("RSA verify error (sig {} bytes, msg {} bytes): {}", signature.len(), message.len(), e))
+            Err(anyhow!(
+                "RSA verify error (sig {} bytes, msg {} bytes): {}",
+                signature.len(),
+                message.len(),
+                e
+            ))
         }
     }
 }
@@ -122,8 +131,7 @@ mod tests {
             .unwrap_or_else(|_| panic!("Dev cert not found at {}", cert_path));
         let fp = cert_pem_fingerprint(&cert_pem).unwrap();
         assert_eq!(
-            fp,
-            "BC:6E:86:C2:46:44:F7:DC:7F:1D:17:89:D1:9A:E5:09:E4:08:8B:B0",
+            fp, "BC:6E:86:C2:46:44:F7:DC:7F:1D:17:89:D1:9A:E5:09:E4:08:8B:B0",
             "Dev cert fingerprint mismatch"
         );
     }

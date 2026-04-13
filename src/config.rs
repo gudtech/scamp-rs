@@ -153,7 +153,9 @@ impl Config {
                 None => line,
             };
             let line = line.trim();
-            if line.is_empty() { continue; }
+            if line.is_empty() {
+                continue;
+            }
 
             let mut parts = line.splitn(2, '=').map(|s| s.trim());
 
@@ -240,7 +242,7 @@ impl ConfElement {
 
         Ok(())
     }
-    #[allow(dead_code)]
+    #[allow(dead_code, clippy::inherent_to_string)]
     pub fn to_string(&self) -> String {
         let mut writer = Vec::new();
         self.write_to_file(&mut writer, "").unwrap();
@@ -269,8 +271,14 @@ mod tests {
     fn test_inline_comments() {
         let config = "foo.bar = hello # this is a comment\nfoo.baz = world\n";
         let root = Config::parse_config(config, None).unwrap();
-        assert_eq!(root.get("foo.bar").unwrap().value.as_ref().unwrap(), "hello");
-        assert_eq!(root.get("foo.baz").unwrap().value.as_ref().unwrap(), "world");
+        assert_eq!(
+            root.get("foo.bar").unwrap().value.as_ref().unwrap(),
+            "hello"
+        );
+        assert_eq!(
+            root.get("foo.baz").unwrap().value.as_ref().unwrap(),
+            "world"
+        );
     }
 
     /// Perl Config.pm:30-31 — first occurrence wins for duplicate keys.
@@ -279,6 +287,9 @@ mod tests {
         let config = "foo.bar = first\nfoo.bar = second\n";
         let root = Config::parse_config(config, None).unwrap();
         let val = root.get("foo.bar").unwrap().value.as_ref().unwrap();
-        assert_eq!(val, "first", "first-wins: duplicate key should keep first value");
+        assert_eq!(
+            val, "first",
+            "first-wins: duplicate key should keep first value"
+        );
     }
 }

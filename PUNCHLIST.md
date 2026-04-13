@@ -129,7 +129,7 @@ cache service picks up. `lssoa` shows the Rust service.
 4. [x] Send on interval (default 5s)
 5. [x] Fix announcement format: v4 extension hash in envelopes array, RLE encoding for action vectors
 6. [x] Fix base64 line-wrapping (76-char lines to match Perl `encode_base64`)
-7. [~] Fix flags: filter to announceable set — constant defined, not yet applied (actions don't have flags yet)
+7. [x] ~~Fix flags: filter to announceable set~~ — D29
 8. [x] Shutdown: weight=0, send 10 rounds at 1s interval, then stop
 
 **Verification**:
@@ -184,9 +184,8 @@ docker exec main perl -e '
 **Goal**: Wire protocol matches Perl exactly, backed by Perl-captured test vectors.
 
 Items:
-- [ ] **T-2** Server hot path tests (handle_connection, route_packet, dispatch_and_reply)
-- [ ] **W-12** Busy flag: track pending requests, adjust client timeout
-- [ ] **W-5** Send-side flow control: pause/resume at 65536 watermark
+- [x] ~~T-2~~ Server hot path tests — T1
+- [x] ~~W-5~~ Send-side flow control: pause/resume at 65536 watermark — D5b
 - [x] ~~T-1/T-3~~ Perl wire fixtures + packet builder helpers (fixtures.rs, 12 new tests)
 - [x] ~~W-1~~ Require `\r\n` in header line parsing — D16
 - [x] ~~W-4~~ ACK validation: format, monotonic, not-past-end — D5
@@ -199,6 +198,7 @@ Items:
 - [x] ~~S-15~~ Filter v4 accompat != 1
 - [x] ~~D15~~ Always serialize action/ticket/identifying_token
 - [x] ~~D30~~ DATA chunk size 2048 to match Perl
+- [ ] **W-12** Busy flag: track pending requests, adjust client timeout
 
 **Verification**:
 ```bash
@@ -212,8 +212,8 @@ cargo test  # all unit tests pass
 
 **Goal**: Config parsing matches Perl exactly, timeouts are correct.
 
-- [ ] **C-6** bus_info(): resolve `bus.address` → IP, `if:ethN`, auto-detect — D22
-- [ ] **S-23** Bind to `service.address` interface, not `0.0.0.0` — D23
+- [x] ~~C-6~~ bus_info(): resolve `bus.address` → IP, `if:ethN`, auto-detect — D22
+- [x] ~~S-23~~ Bind to `service.address` interface, not `0.0.0.0` — D23
 - [x] ~~C-15~~ Config: first-wins for duplicate keys — D19
 - [x] ~~C-16~~ Config: strip inline `# comments` — D21
 - [x] ~~C-9~~ Check `GTSOA` env var — D20
@@ -230,20 +230,23 @@ cargo test
 
 ## Milestone 8: Discovery Hardening
 
-- [ ] Cache staleness check (`discovery.cache_max_age`, default 120s) — D7
-- [ ] Announcement TTL/expiry (`now + sendInterval * 2.1`) — D8
-- [ ] Timestamp replay protection (reject older per identity) — D9
-- [ ] Service deduplication (fingerprint+identity key) — D26
-- [ ] Cache file watching (live refresh via `notify` crate) — D25
-- [ ] Multicast receiver/observer — D24
+- [x] ~~Cache staleness check~~ (`discovery.cache_max_age`, default 120s) — D7
+- [x] ~~Announcement TTL/expiry~~ (`now + sendInterval * 2.1`) — D8
+- [x] ~~Timestamp replay protection~~ (reject older per identity) — D9
+- [x] ~~Service deduplication~~ (fingerprint+identity key) — D26
+- [x] ~~Cache reload mechanism~~ (reload_from_cache + inject_packet) — D25
+- [x] ~~Multicast receiver/observer~~ — D24
 
 ## Milestone 9: Production Hardening
 
-- [ ] Graceful shutdown: drain active requests before close — D10
-- [ ] Ticket verification (parse, sig verify, expiry, privileges) — D11
-- [ ] High-level Requester API (lookup+connect+request+JSON) — D28
-- [ ] Service failure tracking / backoff — D32
-- [ ] dispatch_failure / retry — D31
+- [x] ~~Graceful shutdown: drain active requests before close~~ — D10
+- [x] ~~Ticket verification (parse, sig verify, expiry, privileges)~~ — D11
+- [x] ~~High-level Requester API (lookup+connect+request)~~ — D28
+- [x] ~~Service failure tracking / backoff~~ — D32
+- [x] ~~dispatch_failure / retry~~ — D31
+- [x] ~~Auth.getAuthzTable privilege checking~~ — C1 audit
+- [x] ~~error_data header field for structured error metadata~~ — C2 audit
+- [x] ~~Announceable flag filtering~~ — D29
 - [ ] Typed error enum (`ScampError`)
 - [ ] Connection reconnection with backoff
 
