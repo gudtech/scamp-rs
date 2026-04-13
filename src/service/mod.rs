@@ -7,6 +7,7 @@ mod announce;
 mod handler;
 mod listener;
 pub mod multicast;
+mod server_connection;
 
 pub use handler::{ActionHandlerFn, ActionInfo, ScampReply, ScampRequest};
 pub use listener::ScampService;
