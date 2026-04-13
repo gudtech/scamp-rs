@@ -76,6 +76,7 @@ impl Config {
             }
         }
 
+        // Check SCAMP_CONFIG env var
         if let Ok(config_path) = std::env::var("SCAMP_CONFIG") {
             let path = PathBuf::from(config_path);
             if path.exists() {
@@ -89,7 +90,20 @@ impl Config {
                     path.to_string_lossy()
                 ));
             }
-        } else {
+        }
+
+        // Perl Config.pm:40 — check GTSOA env var (canonical Perl env var)
+        if let Ok(gtsoa_path) = std::env::var("GTSOA") {
+            let path = PathBuf::from(&gtsoa_path).join("etc/soa.conf");
+            if path.exists() {
+                return Ok(ConfigPath {
+                    path,
+                    conf_rewrites: None,
+                });
+            }
+        }
+
+        {
             let mut failed_paths = Vec::new();
             // iterate over the default paths and return the first one that exists
             for path in DEFAULT_CONFIG_PATHS {
