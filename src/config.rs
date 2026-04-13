@@ -176,7 +176,10 @@ impl Config {
                             }
                         }
                     }
-                    current.value = Some(value);
+                    // Perl Config.pm:30-31 — first-wins for duplicate keys
+                    if current.value.is_none() {
+                        current.value = Some(value);
+                    }
                 }
                 _ => {
                     log::warn!("Invalid config line. Skipping: {}", line);
@@ -239,10 +242,17 @@ mod tests {
         // be the same
         let test_config_file = include_str!("../samples/soa.conf");
         let root = Config::parse_config(test_config_file, None).unwrap();
-        // create a writer for a string
         let mut writer = Vec::new();
-
         root.write_to_file(&mut writer, "").unwrap();
         assert_eq!(test_config_file, String::from_utf8_lossy(&writer));
+    }
+
+    /// Perl Config.pm:30-31 — first occurrence wins for duplicate keys.
+    #[test]
+    fn test_first_wins_duplicate_keys() {
+        let config = "foo.bar = first\nfoo.bar = second\n";
+        let root = Config::parse_config(config, None).unwrap();
+        let val = root.get("foo.bar").unwrap().value.as_ref().unwrap();
+        assert_eq!(val, "first", "first-wins: duplicate key should keep first value");
     }
 }
