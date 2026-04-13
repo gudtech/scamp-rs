@@ -3,6 +3,8 @@
 mod header;
 mod packet;
 #[cfg(test)]
+pub(crate) mod fixtures;
+#[cfg(test)]
 mod tests;
 
 pub use header::{EnvelopeFormat, FlexInt, MessageType, PacketHeader};
