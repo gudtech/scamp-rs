@@ -84,7 +84,7 @@ fn create_multicast_socket(config: &MulticastConfig) -> Result<std::net::UdpSock
     // Set multicast interface — Perl: $sock->mcast_if($to)
     socket.set_multicast_if_v4(&config.interface)?;
 
-    socket.set_nonblocking(false)?;
+    socket.set_nonblocking(true)?;
 
     log::info!(
         "Multicast socket bound on {} → {}:{}",
@@ -110,21 +110,21 @@ pub async fn run_announcer<F>(
 where
     F: FnMut(bool) -> Result<Vec<u8>> + Send,
 {
-    let socket = create_multicast_socket(&config)?;
-    let dest = SocketAddrV4::new(config.group, config.port);
+    let std_socket = create_multicast_socket(&config)?;
+    let socket = tokio::net::UdpSocket::from_std(std_socket)?;
+    let dest = std::net::SocketAddr::V4(SocketAddrV4::new(config.group, config.port));
 
     // Normal announcing loop — Perl Announcer.pm:85-91
     loop {
         let packet = build_packet(true)?;
         let compressed = zlib_compress(&packet)?;
 
-        if let Err(e) = socket.send_to(&compressed, dest) {
+        if let Err(e) = socket.send_to(&compressed, dest).await {
             log::error!("Announce send failed: {}", e);
         } else {
             log::debug!("Sent announcement ({} bytes compressed)", compressed.len());
         }
 
-        // Wait for interval or shutdown signal
         let sleep = tokio::time::sleep(tokio::time::Duration::from_secs(
             config.interval_secs as u64,
         ));
@@ -144,7 +144,7 @@ where
         let packet = build_packet(false)?;
         let compressed = zlib_compress(&packet)?;
 
-        if let Err(e) = socket.send_to(&compressed, dest) {
+        if let Err(e) = socket.send_to(&compressed, dest).await {
             log::error!("Shutdown announce {} failed: {}", round, e);
         } else {
             log::debug!("Shutdown announce {}/{}", round, SHUTDOWN_ROUNDS);

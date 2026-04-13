@@ -145,8 +145,11 @@ async fn route_packet(
                     body: msg.received.to_string().into_bytes(),
                 };
                 let mut w = writer.lock().await;
-                let _ = ack.write(&mut *w).await;
-                let _ = w.flush().await;
+                if let Err(e) = ack.write(&mut *w).await {
+                    log::error!("Failed to write ACK: {}", e);
+                    return;
+                }
+                if let Err(e) = w.flush().await { log::error!("Flush failed: {}", e); return; }
             }
         }
         PacketType::Eof => {
@@ -201,8 +204,8 @@ async fn route_packet(
                 body: vec![],
             };
             let mut w = writer.lock().await;
-            let _ = pong.write(&mut *w).await;
-            let _ = w.flush().await;
+            if let Err(e) = pong.write(&mut *w).await { log::error!("Failed to write PONG: {}", e); return; }
+            if let Err(e) = w.flush().await { log::error!("Flush failed: {}", e); return; }
         }
         PacketType::Pong => {}
     }
@@ -248,6 +251,7 @@ async fn dispatch_and_reply(
         envelope: EnvelopeFormat::Json,
         error: reply.error,
         error_code: reply.error_code,
+        error_data: None,
         request_id,
         client_id: FlexInt(0),
         ticket: String::new(),
@@ -266,7 +270,11 @@ async fn dispatch_and_reply(
         packet_header: Some(reply_header),
         body: vec![],
     };
-    let _ = header_pkt.write(&mut *w).await;
+    if let Err(e) = header_pkt.write(&mut *w).await {
+        log::error!("Failed to write reply HEADER: {}", e);
+        outgoing.remove(&reply_msg_no);
+        return;
+    }
 
     let mut offset = 0;
     while offset < reply.body.len() {
@@ -278,7 +286,11 @@ async fn dispatch_and_reply(
             packet_header: None,
             body: reply.body[offset..end].to_vec(),
         };
-        let _ = data_pkt.write(&mut *w).await;
+        if let Err(e) = data_pkt.write(&mut *w).await {
+            log::error!("Failed to write reply DATA: {}", e);
+            outgoing.remove(&reply_msg_no);
+            return;
+        }
         if let Some(state) = outgoing.get_mut(&reply_msg_no) {
             state.sent += chunk_len;
         }
@@ -291,8 +303,12 @@ async fn dispatch_and_reply(
         packet_header: None,
         body: vec![],
     };
-    let _ = eof_pkt.write(&mut *w).await;
-    let _ = w.flush().await;
+    if let Err(e) = eof_pkt.write(&mut *w).await {
+        log::error!("Failed to write reply EOF: {}", e);
+    }
+    if let Err(e) = w.flush().await {
+        log::error!("Reply flush failed: {}", e);
+    }
 
     outgoing.remove(&reply_msg_no);
 }

@@ -27,6 +27,11 @@ pub struct PacketHeader {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error_code: Option<String>,
 
+    /// Structured error metadata — JS connection.js uses this for dispatch_failure.
+    /// Contains `{"dispatch_failure": true}` when a service can't handle the request.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error_data: Option<serde_json::Value>,
+
     #[serde(default)]
     pub request_id: FlexInt,
 
@@ -54,6 +59,7 @@ impl Default for PacketHeader {
             envelope: EnvelopeFormat::Json,
             error: None,
             error_code: None,
+            error_data: None,
             request_id: FlexInt(0),
             client_id: FlexInt(0),
             ticket: String::new(),

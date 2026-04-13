@@ -181,7 +181,7 @@ impl ConnectionHandle {
 
         let header = PacketHeader {
             action: action.to_string(), envelope, error: None, error_code: None,
-            request_id: FlexInt(request_id), client_id: FlexInt(client_id),
+            error_data: None, request_id: FlexInt(request_id), client_id: FlexInt(client_id),
             ticket: ticket.to_string(), identifying_token: String::new(),
             message_type: MessageType::Request, version,
         };

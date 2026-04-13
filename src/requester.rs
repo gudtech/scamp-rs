@@ -63,8 +63,13 @@ impl Requester {
         let resp = self.dispatch_once(&opts).await?;
 
         // D31: If dispatch_failure, mark service failed and retry once
-        // JS requester.js:50-58
-        if resp.header.error_code.as_deref() == Some("dispatch_failure") {
+        // JS requester.js:50-58: checks error_data.dispatch_failure
+        let is_dispatch_failure = resp.header.error_data.as_ref()
+            .and_then(|d| d.get("dispatch_failure"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+            || resp.header.error_code.as_deref() == Some("dispatch_failure");
+        if is_dispatch_failure {
             if let Some(entry) = self.registry.find_action_with_envelope(
                 opts.sector,
                 opts.action,
