@@ -62,126 +62,9 @@ pub struct ServiceRegistry {
 
 impl ServiceRegistry {
     pub fn new_from_cache(config: &Config) -> Result<Self> {
-        let mut actions_by_key: BTreeMap<String, Vec<ActionEntry>> = BTreeMap::new();
-        let mut seen_timestamps: HashMap<String, f64> = HashMap::new();
-
-        let cache_path: String = config
-            .get("discovery.cache_path")
-            .ok_or_else(|| anyhow::anyhow!("No cache path found"))?
-            .map_err(|e| anyhow::anyhow!("Failed to get cache path: {}", e))?;
-
-        let auth = match config.get::<String>("bus.authorized_services") {
-            Some(Ok(path)) => match AuthorizedServices::load(&path) {
-                Ok(a) => a,
-                Err(e) => {
-                    log::warn!("Failed to load authorized_services from {}: {}", path, e);
-                    AuthorizedServices::empty()
-                }
-            },
-            _ => {
-                log::debug!("No bus.authorized_services configured");
-                AuthorizedServices::empty()
-            }
-        };
-
-        let mut file = File::open(&cache_path).map_err(|e| {
-            anyhow::anyhow!("Failed to open discovery cache file {}, {}", cache_path, e)
-        })?;
-
-        let cache_max_age: u64 = config // D7: Perl ServiceManager.pm:83-88
-            .get::<u64>("discovery.cache_max_age")
-            .and_then(|r| r.ok())
-            .unwrap_or(120);
-        if let Ok(metadata) = file.metadata() {
-            if let Ok(modified) = metadata.modified() {
-                let age = modified.elapsed().unwrap_or_default();
-                if age.as_secs() > cache_max_age {
-                    log::warn!(
-                        "Discovery cache is stale ({:.0}s old, max {}s): {}",
-                        age.as_secs(), cache_max_age, cache_path
-                    );
-                }
-            }
-        }
-
-        let iterator = CacheFileAnnouncementIterator::new(&mut file);
-        for announcement_packet in iterator {
-            let packet = announcement_packet?;
-            if !packet.signature_is_valid() {
-                log::debug!("Skipping announcement with invalid signature: {}", packet.body.info.identity);
-                continue;
-            }
-
-            let AnnouncementPacket { body, .. } = packet;
-
-            let fingerprint = body.info.fingerprint.as_deref().unwrap_or("");
-
-            // D8: TTL/expiry — Perl ServiceManager.pm:38
-            let now_f = now_secs() as f64;
-            let interval_secs = body.params.interval as f64 / 1000.0;
-            if now_f > body.params.timestamp + interval_secs * 2.1 {
-                log::debug!("Skipping expired announcement for {}", body.info.identity);
-                continue;
-            }
-
-            // D9/D26: Replay protection + dedup — Perl ServiceManager.pm:29-35
-            let dedup_key = format!("{} {}", fingerprint, body.info.identity);
-            let timestamp = body.params.timestamp;
-            if let Some(&prev_ts) = seen_timestamps.get(&dedup_key) {
-                if timestamp <= prev_ts {
-                    log::debug!("Skipping stale announcement for {} (ts {} <= {})", body.info.identity, timestamp, prev_ts);
-                    continue;
-                }
-                // Newer timestamp: remove old actions for this service
-                for entries in actions_by_key.values_mut() {
-                    entries.retain(|e| {
-                        !(e.service_info.identity == body.info.identity
-                            && e.service_info.fingerprint.as_deref() == Some(fingerprint))
-                    });
-                }
-            }
-            seen_timestamps.insert(dedup_key, timestamp);
-
-            for action in &body.actions {
-                let authorized = auth.is_authorized(fingerprint, &action.sector, &action.path);
-                let entry = ActionEntry {
-                    service_info: body.info.clone(),
-                    announcement_params: body.params.clone(),
-                    action: action.clone(),
-                    authorized,
-                };
-                let key = make_index_key(&action.sector, &action.path, action.version);
-                actions_by_key.entry(key).or_default().push(entry);
-
-                // CRUD aliases — Perl ServiceInfo.pm:191-192
-                let namespace = action.path.rsplit_once('.').map(|(ns, _)| ns).unwrap_or(&action.path);
-                for flag in &action.flags {
-                    if let Flag::CrudOp(op) = flag {
-                        let tag = match op {
-                            CrudOp::Create => "create",
-                            CrudOp::Read => "read",
-                            CrudOp::Update => "update",
-                            CrudOp::Delete => "destroy",
-                        };
-                        let alias_key =
-                            make_crud_alias_key(&action.sector, namespace, tag, action.version);
-                        let alias_entry = ActionEntry {
-                            service_info: body.info.clone(),
-                            announcement_params: body.params.clone(),
-                            action: action.clone(),
-                            authorized: true,
-                        };
-                        actions_by_key.entry(alias_key).or_default().push(alias_entry);
-                    }
-                }
-            }
-        }
-
-        Ok(Self {
-            actions_by_key,
-            seen_timestamps,
-            failures: Mutex::new(HashMap::new()),
-        })
+        let mut registry = Self::empty();
+        registry.reload_from_cache(config)?;
+        Ok(registry)
     }
 
     pub fn empty() -> Self {
@@ -190,6 +73,115 @@ impl ServiceRegistry {
             seen_timestamps: HashMap::new(),
             failures: Mutex::new(HashMap::new()),
         }
+    }
+
+    /// Inject a single announcement packet into the registry (D24/D25).
+    /// Used by the multicast observer and cache reload.
+    /// Perl ServiceManager.pm:inject()
+    pub fn inject_packet(&mut self, packet: AnnouncementPacket, auth: &AuthorizedServices) {
+        if !packet.signature_is_valid() {
+            log::debug!("Skipping announcement with invalid signature: {}", packet.body.info.identity);
+            return;
+        }
+        let body = packet.body;
+        let fingerprint = body.info.fingerprint.as_deref().unwrap_or("");
+
+        // TTL/expiry
+        let now_f = now_secs() as f64;
+        let interval_secs = body.params.interval as f64 / 1000.0;
+        if now_f > body.params.timestamp + interval_secs * 2.1 {
+            return;
+        }
+
+        // Replay protection + dedup
+        let dedup_key = format!("{} {}", fingerprint, body.info.identity);
+        let timestamp = body.params.timestamp;
+        if let Some(&prev_ts) = self.seen_timestamps.get(&dedup_key) {
+            if timestamp <= prev_ts { return; }
+            for entries in self.actions_by_key.values_mut() {
+                entries.retain(|e| {
+                    !(e.service_info.identity == body.info.identity
+                        && e.service_info.fingerprint.as_deref() == Some(fingerprint))
+                });
+            }
+        }
+        self.seen_timestamps.insert(dedup_key, timestamp);
+
+        for action in &body.actions {
+            let authorized = auth.is_authorized(fingerprint, &action.sector, &action.path);
+            let entry = ActionEntry {
+                service_info: body.info.clone(),
+                announcement_params: body.params.clone(),
+                action: action.clone(),
+                authorized,
+            };
+            let key = make_index_key(&action.sector, &action.path, action.version);
+            self.actions_by_key.entry(key).or_default().push(entry);
+
+            // CRUD aliases
+            let namespace = action.path.rsplit_once('.').map(|(ns, _)| ns).unwrap_or(&action.path);
+            for flag in &action.flags {
+                if let Flag::CrudOp(op) = flag {
+                    let tag = match op {
+                        CrudOp::Create => "create", CrudOp::Read => "read",
+                        CrudOp::Update => "update", CrudOp::Delete => "destroy",
+                    };
+                    let alias_key = make_crud_alias_key(&action.sector, namespace, tag, action.version);
+                    let alias_entry = ActionEntry {
+                        service_info: body.info.clone(),
+                        announcement_params: body.params.clone(),
+                        action: action.clone(),
+                        authorized: true,
+                    };
+                    self.actions_by_key.entry(alias_key).or_default().push(alias_entry);
+                }
+            }
+        }
+    }
+
+    /// Reload registry from the cache file (D25).
+    /// Perl ServiceManager.pm:66-98.
+    pub fn reload_from_cache(&mut self, config: &Config) -> Result<()> {
+        let cache_path: String = config
+            .get("discovery.cache_path")
+            .ok_or_else(|| anyhow::anyhow!("No cache path found"))?
+            .map_err(|e| anyhow::anyhow!("Failed to get cache path: {}", e))?;
+
+        let auth = match config.get::<String>("bus.authorized_services") {
+            Some(Ok(path)) => AuthorizedServices::load(&path).unwrap_or_else(|e| {
+                log::warn!("Failed to load authorized_services: {}", e);
+                AuthorizedServices::empty()
+            }),
+            _ => AuthorizedServices::empty(),
+        };
+
+        let mut file = File::open(&cache_path).map_err(|e| {
+            anyhow::anyhow!("Failed to open cache {}: {}", cache_path, e)
+        })?;
+
+        // D7: Cache staleness check — Perl ServiceManager.pm:83-88
+        let cache_max_age: u64 = config
+            .get::<u64>("discovery.cache_max_age")
+            .and_then(|r| r.ok())
+            .unwrap_or(120);
+        if let Ok(metadata) = file.metadata() {
+            if let Ok(modified) = metadata.modified() {
+                let age = modified.elapsed().unwrap_or_default();
+                if age.as_secs() > cache_max_age {
+                    log::warn!("Discovery cache stale ({:.0}s old, max {}s)", age.as_secs(), cache_max_age);
+                }
+            }
+        }
+
+        self.actions_by_key.clear();
+        self.seen_timestamps.clear();
+
+        for packet_result in CacheFileAnnouncementIterator::new(&mut file) {
+            if let Ok(packet) = packet_result {
+                self.inject_packet(packet, &auth);
+            }
+        }
+        Ok(())
     }
 
     /// Returns an iterator over all actions presently in the registry
