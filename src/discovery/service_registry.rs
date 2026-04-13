@@ -18,6 +18,18 @@ pub struct ActionEntry {
     pub authorized: bool,
 }
 
+impl ActionEntry {
+    /// Per-action timeout in seconds from `t600` flags, with +5s padding.
+    /// Perl ServiceInfo.pm:257-258: `timeout = $timeout + 5`
+    /// Returns None if no timeout flag is set (use default RPC timeout).
+    pub fn timeout_secs(&self) -> Option<u64> {
+        self.action.flags.iter().find_map(|f| match f {
+            Flag::Timeout(secs) => Some(*secs as u64 + 5),
+            _ => None,
+        })
+    }
+}
+
 /// Index key format: `sector:namespace.action.vVERSION` (lowercased)
 /// Matches Perl ServiceInfo.pm:188 and JS serviceMgr.js:221
 fn make_index_key(sector: &str, action_path: &str, version: u32) -> String {
