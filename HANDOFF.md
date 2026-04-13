@@ -77,26 +77,16 @@ Previous session fixes:
 | **Perl Requester->simple_request → Rust (via discovery)** | **✓ full pipeline** |
 | lssoa shows Rust service | ✓ correct identity, sector, weight, fingerprint, actions |
 
-### Next Work: M8/M9 — Discovery + Production Hardening
+### Next Work: M8 — Discovery Hardening
 
-**11 remaining items** (see DEFICIENCIES.md):
+**3 remaining items** (see DEFICIENCIES.md):
 
 **M8 — Discovery Hardening:**
-- D24: Multicast receiver/observer
-- D25: Cache refresh/reload mechanism
+- D24: Multicast receiver/observer (receive announcements from other services)
+- D25: Cache refresh/reload mechanism (re-read cache file on change)
 
-**M9 — Production Hardening:**
-- D10: Graceful shutdown (drain active requests)
-- D11: Ticket verification
-- D22: `bus_info()` interface resolution (`if:ethN`)
-- D23: Bind to `service.address` interface
-- D28: High-level Requester API
-- D29: Announceable flag filtering
-- D31/D32: Failure tracking, retry
-
-**Remaining quality items:**
-- Q5: list.rs (314 lines) exceeds 300-line limit
-- T4/T6/T8/T10: Test coverage gaps
+**Test quality:**
+- T8: Shared test helpers for common patterns (low priority)
 - T2: Client request sending tests
 - T4: authorized_services tests through load()
 - T10: RLE decode edge cases
