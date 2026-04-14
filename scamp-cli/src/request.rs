@@ -4,6 +4,7 @@ use std::io::IsTerminal;
 use anyhow::Result;
 use scamp::config::Config;
 use scamp::discovery::service_registry::ServiceRegistry;
+use scamp::discovery::ServiceInfo;
 use scamp::transport::beepish::proto::EnvelopeFormat;
 use scamp::transport::beepish::BeepishClient;
 use tokio::io::AsyncBufReadExt;
@@ -14,6 +15,11 @@ pub struct RequestCommand {
     /// Example: product.sku.fetch~1
     #[arg(short, long)]
     action: String,
+
+    /// Connect directly to host:port, bypassing discovery
+    /// Example: --connect 127.0.0.1:30153
+    #[arg(short, long)]
+    connect: Option<String>,
 
     /// Use a file for the request body
     #[arg(short, long)]
@@ -32,18 +38,31 @@ pub struct RequestCommand {
 }
 
 impl RequestCommand {
-    pub async fn run(&self, config: &Config, registry: &ServiceRegistry) -> Result<()> {
-        println!("  * Requesting action: {}", self.action);
+    pub fn needs_discovery(&self) -> bool {
+        self.connect.is_none()
+    }
 
+    pub async fn run(&self, config: &Config, registry: &ServiceRegistry) -> Result<()> {
         let mut parts = self.action.splitn(2, '~');
         let action_name = parts.next().unwrap_or(&self.action);
         let version: i32 = parts.next().unwrap_or("1").parse().unwrap_or(1);
 
-        // Look up action using the new key format (sector:action.vVERSION)
-        // Default to "main" sector, matching Perl Requester.pm:15
-        let action = registry
-            .get_action_by_pathver(&format!("{}~{}", action_name, version), "main")
-            .ok_or(anyhow::anyhow!("Action not found: {} (tried sector 'main')", action_name))?;
+        let service_info = if let Some(addr) = &self.connect {
+            // Direct connection — bypass discovery
+            println!("  * Connecting directly to {}", addr);
+            ServiceInfo {
+                identity: "direct".to_string(),
+                uri: format!("beepish+tls://{}", addr),
+                fingerprint: None, // skip fingerprint verification
+            }
+        } else {
+            // Discovery-based lookup
+            let action = registry
+                .get_action_by_pathver(&format!("{}~{}", action_name, version), "main")
+                .ok_or(anyhow::anyhow!("Action not found: {} (tried sector 'main')", action_name))?;
+            println!("  * Found {} at {}", self.action, action.service_info.uri);
+            action.service_info.clone()
+        };
 
         let mut _headers: BTreeMap<String, String> = BTreeMap::new();
         for header in &self.header {
@@ -77,29 +96,17 @@ impl RequestCommand {
         };
 
         let client = BeepishClient::new(config);
-
         let response = client
-            .request(
-                &action.service_info,
-                action_name,
-                version,
-                EnvelopeFormat::Json,
-                "", // ticket
-                0,  // client_id
-                body_bytes,
-                None, // use default timeout
-            )
+            .request(&service_info, action_name, version, EnvelopeFormat::Json, "", 0, body_bytes, None)
             .await?;
 
-        if let Some(err) = &response.error {
+        if let Some(err) = &response.header.error {
             eprintln!("  * Error: {}", err);
         }
-
         if !response.body.is_empty() {
             print!("{}", String::from_utf8_lossy(&response.body));
         }
-
-        println!("\n  * Request complete. Response contained {} bytes", response.body.len());
+        println!("\n  * Response: {} bytes", response.body.len());
 
         Ok(())
     }

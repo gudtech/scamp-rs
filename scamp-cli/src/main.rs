@@ -38,7 +38,12 @@ impl Commands {
                 command.run(config, &registry)
             }
             Commands::Request(command) => {
-                let registry = ServiceRegistry::new_from_cache(config)?;
+                // Only load registry if not using --connect (direct mode)
+                let registry = if command.needs_discovery() {
+                    ServiceRegistry::new_from_cache(config)?
+                } else {
+                    ServiceRegistry::empty()
+                };
                 command.run(config, &registry).await
             }
             Commands::Serve(command) => command.run(config).await,
@@ -50,6 +55,7 @@ impl Commands {
 async fn main() -> Result<()> {
     env_logger::init();
     let args = Args::parse();
-    let config = Config::new(args.config)?;
+    // Config is optional when using --connect (no discovery needed)
+    let config = Config::new(args.config).unwrap_or_else(|_| Config::from_content("").unwrap());
     args.command.run(&config).await
 }
