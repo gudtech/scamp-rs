@@ -1,3 +1,6 @@
+[workspace]
+members = [".", "scamp-macros"]
+
 [package]
 name = "scamp"
 version = "0.1.0"
@@ -25,6 +28,8 @@ tokio-native-tls = "0.3.1"
 flate2 = "1.0"
 socket2 = "0.5"
 libc = "0.2"
+inventory = "0.3"
+scamp-macros = { path = "scamp-macros" }
 
 [dev-dependencies]
 tempfile = "3"
