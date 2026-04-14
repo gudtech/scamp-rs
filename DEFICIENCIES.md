@@ -110,15 +110,15 @@ Confirmed matching across all implementations:
 
 | ID | Severity | Description | Source |
 |----|----------|-------------|--------|
-| A1 | Medium | ScampReply has no error_data field (handlers can't send structured errors) | C#-v2, JS-v2 |
-| A2 | Medium | register() always sets empty flags (can't register noauth actions) | C#-v2 |
+| ~~A1~~ | ~~Medium~~ | ~~ScampReply has no error_data field~~ Fixed: added error_data to ScampReply + send_reply | C#-v2, JS-v2 |
+| ~~A2~~ | ~~Medium~~ | ~~register() always sets empty flags~~ Fixed: register_with_flags() | C#-v2 |
 | A3 | Medium | Rust server never sets error_data:{dispatch_failure:true} | JS-v2 |
 | A4 | Low | Config keys hardcoded (rpc.timeout, beepish.* timeouts, port range) | Perl-v2 |
 | A5 | Low | V4 action vectors always empty in announcements | Perl-v2, Elegance |
 | A6 | Low | No heartbeat initiation (responds to PING, never sends) | JS-v2 |
 | A7 | Low | Connection pool grows without bound (no eviction) | JS-v2, Elegance |
 | A8 | Low | Stale cache behavior divergence (Rust serves, Perl fails) | Perl-v2 |
-| S1 | Standards | Inline tests: connection.rs (415), server_connection.rs (475) over 300 | Standards-v2 |
+| ~~S1~~ | ~~Standards~~ | ~~Inline tests~~ Fixed: extracted to separate files, all under 300 | Standards-v2 |
 | S2 | Standards | service_info/mod.rs has parsing logic (belongs in parse.rs) | Standards-v2 |
 | S3 | Standards | service_registry.rs at ~322 lines | Standards-v2 |
 | S4 | Standards | HANDOFF.md had stale references | Standards-v2 |
