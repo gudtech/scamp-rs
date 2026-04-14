@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "scamp-macros"]
+members = [".", "scamp-macros", "sample-service"]
 
 [package]
 name = "scamp"
