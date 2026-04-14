@@ -10,7 +10,7 @@ use tokio::io::{AsyncRead, AsyncReadExt};
 use tokio::sync::{mpsc, oneshot, Mutex, Notify};
 
 use super::ScampResponse;
-use crate::transport::beepish::proto::{Packet, PacketHeader, PacketType, ParseResult};
+use crate::transport::beepish::proto::{Packet, PacketHeader, PacketType, ParseResult, MAX_PACKET_SIZE};
 
 /// In-progress incoming message being assembled from packets.
 struct IncomingMessage {
@@ -54,6 +54,10 @@ pub(super) async fn reader_task(
             }
         };
         buf.extend_from_slice(&tmp[..n]);
+        if buf.len() > MAX_PACKET_SIZE + 100 {
+            log::error!("Read buffer exceeded max packet size, closing");
+            break;
+        }
 
         let mut consumed = 0;
         while consumed < buf.len() {

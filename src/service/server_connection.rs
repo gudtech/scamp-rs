@@ -10,7 +10,7 @@ use tokio::sync::Mutex;
 use super::handler::{RegisteredAction, ScampReply, ScampRequest};
 use super::server_reply::send_reply;
 use crate::auth::authz::AuthzChecker;
-use crate::transport::beepish::proto::{Packet, PacketHeader, PacketType, ParseResult};
+use crate::transport::beepish::proto::{Packet, PacketHeader, PacketType, ParseResult, MAX_PACKET_SIZE};
 
 /// Server connection idle timeout — Perl Server.pm:58, Connection.pm:131-135
 const DEFAULT_SERVER_TIMEOUT_SECS: u64 = 120;
@@ -24,7 +24,9 @@ struct IncomingRequest {
 /// Writer half, boxed for testability (allows in-memory streams in tests).
 pub(crate) type ServerWriter = Arc<Mutex<Box<dyn AsyncWrite + Unpin + Send>>>;
 
-/// Tracks bytes sent/acknowledged for outgoing replies (D5 flow control).
+/// Tracks bytes sent/acknowledged for outgoing replies.
+/// Used for ACK validation (monotonic, not past end) and is_busy detection.
+/// Server-side does NOT pause on watermark — matches Perl, which sends replies unbounded.
 #[derive(Debug, Default)]
 pub(crate) struct OutgoingReplyState {
     pub(crate) sent: u64,
@@ -76,6 +78,11 @@ pub(crate) async fn handle_connection(
             }
         };
         buf.extend_from_slice(&tmp[..n]);
+        // M1: Cap buffer to prevent OOM from adversarial streams
+        if buf.len() > MAX_PACKET_SIZE + 100 {
+            log::error!("Read buffer exceeded max packet size, closing");
+            return;
+        }
 
         // Parse all complete packets from the buffer.
         let mut consumed = 0;
@@ -85,7 +92,7 @@ pub(crate) async fn handle_connection(
                 ParseResult::Drop { bytes_used } => consumed += bytes_used,
                 ParseResult::Success { packet, bytes_used } => {
                     consumed += bytes_used;
-                    route_packet(
+                    let ok = route_packet(
                         packet,
                         &mut incoming,
                         &mut outgoing,
@@ -96,6 +103,9 @@ pub(crate) async fn handle_connection(
                         &authz,
                     )
                     .await;
+                    if !ok {
+                        return;
+                    }
                 }
                 ParseResult::Fatal(err) => {
                     log::error!("Fatal protocol error: {}", err);
@@ -107,6 +117,7 @@ pub(crate) async fn handle_connection(
     }
 }
 
+/// Returns false if the connection should be closed.
 async fn route_packet(
     packet: Packet,
     incoming: &mut HashMap<u64, IncomingRequest>,
@@ -116,12 +127,13 @@ async fn route_packet(
     writer: &ServerWriter,
     actions: &Arc<HashMap<String, RegisteredAction>>,
     authz: &Option<Arc<AuthzChecker>>,
-) {
+) -> bool {
     match packet.packet_type {
         PacketType::Header => {
+            // Perl Connection.pm:140 — out-of-sequence HEADER is fatal, close connection
             if packet.msg_no != *next_incoming_msg_no {
-                log::error!("Out of sequence: expected {} got {}", *next_incoming_msg_no, packet.msg_no);
-                return;
+                log::error!("Out of sequence: expected {} got {}, closing", *next_incoming_msg_no, packet.msg_no);
+                return false;
             }
             *next_incoming_msg_no += 1;
             if let Some(header) = packet.packet_header {
@@ -148,7 +160,7 @@ async fn route_packet(
                 let mut w = writer.lock().await;
                 if let Err(e) = ack.write(&mut *w).await {
                     log::error!("Failed to write ACK: {}", e);
-                    return;
+                    return false;
                 }
                 if let Err(e) = w.flush().await {
                     log::error!("Flush failed: {}", e);
@@ -156,6 +168,11 @@ async fn route_packet(
             }
         }
         PacketType::Eof => {
+            // Perl Connection.pm:162 — EOF body must be empty
+            if !packet.body.is_empty() {
+                log::error!("EOF packet has non-empty body ({} bytes)", packet.body.len());
+                return true;
+            }
             if let Some(msg) = incoming.remove(&packet.msg_no) {
                 dispatch_and_reply(msg, next_outgoing_msg_no, outgoing, writer, actions, authz).await;
             }
@@ -165,7 +182,7 @@ async fn route_packet(
             let body_str = String::from_utf8_lossy(&packet.body);
             if body_str.is_empty() || body_str == "0" {
                 log::error!("TXERR with empty/zero body for msgno {}", packet.msg_no);
-                return;
+                return true; // protocol error but not fatal to connection
             }
             incoming.remove(&packet.msg_no);
         }
@@ -176,17 +193,17 @@ async fn route_packet(
                 Ok(v) if v > 0 => v,
                 _ => {
                     log::error!("Malformed ACK body: {:?}", body_str);
-                    return;
+                    return true;
                 }
             };
             if let Some(state) = outgoing.get_mut(&packet.msg_no) {
                 if ack_val <= state.acknowledged {
                     log::error!("ACK pointer moved backward: {} <= {}", ack_val, state.acknowledged);
-                    return;
+                    return true;
                 }
                 if ack_val > state.sent {
                     log::error!("ACK pointer past end: {} > sent {}", ack_val, state.sent);
-                    return;
+                    return true;
                 }
                 state.acknowledged = ack_val;
             }
@@ -201,7 +218,7 @@ async fn route_packet(
             let mut w = writer.lock().await;
             if let Err(e) = pong.write(&mut *w).await {
                 log::error!("Failed to write PONG: {}", e);
-                return;
+                return false;
             }
             if let Err(e) = w.flush().await {
                 log::error!("Flush failed: {}", e);
@@ -209,6 +226,7 @@ async fn route_packet(
         }
         PacketType::Pong => {}
     }
+    true
 }
 
 async fn dispatch_and_reply(

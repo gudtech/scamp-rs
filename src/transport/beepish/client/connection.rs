@@ -16,10 +16,8 @@ use crate::config::Config;
 use crate::discovery::ServiceInfo;
 use crate::transport::beepish::proto::{EnvelopeFormat, FlexInt, MessageType, Packet, PacketHeader, PacketType, DATA_CHUNK_SIZE};
 
-/// Default per-request (RPC) timeout — Perl ServiceInfo.pm:257
-pub const DEFAULT_RPC_TIMEOUT_SECS: u64 = 75;
+pub const DEFAULT_RPC_TIMEOUT_SECS: u64 = 75; // Perl ServiceInfo.pm:257
 const FLOW_CONTROL_WATERMARK: u64 = 65536; // JS connection.js:4
-
 #[derive(Debug)]
 pub struct ScampResponse {
     pub header: PacketHeader,
@@ -40,6 +38,7 @@ pub struct ConnectionHandle {
     next_request_id: AtomicI64,
     next_outgoing_msg_no: AtomicU64,
     closed: Arc<AtomicBool>,
+    proxy_handle: tokio::task::JoinHandle<()>,
     reader_handle: tokio::task::JoinHandle<()>,
     writer_handle: tokio::task::JoinHandle<()>,
 }
@@ -87,7 +86,7 @@ impl ConnectionHandle {
     pub(crate) fn from_stream(stream: impl AsyncRead + AsyncWrite + Unpin + Send + 'static) -> Self {
         let (proxy_client, mut proxy_server) = tokio::io::duplex(65536);
         let mut real = stream;
-        tokio::spawn(async move {
+        let proxy_handle = tokio::spawn(async move {
             let _ = tokio::io::copy_bidirectional(&mut real, &mut proxy_server).await;
         });
         let (read_half, write_half) = tokio::io::split(proxy_client);
@@ -117,6 +116,7 @@ impl ConnectionHandle {
             next_request_id: AtomicI64::new(1),      // Perl Client.pm:33
             next_outgoing_msg_no: AtomicU64::new(0), // All impls start at 0
             closed,
+            proxy_handle,
             reader_handle,
             writer_handle,
         }
@@ -281,11 +281,11 @@ impl ConnectionHandle {
 impl Drop for ConnectionHandle {
     fn drop(&mut self) {
         self.closed.store(true, Ordering::Relaxed);
+        self.proxy_handle.abort();
         self.reader_handle.abort();
         self.writer_handle.abort();
     }
 }
-
 async fn writer_task(mut writer: impl AsyncWrite + Unpin, mut rx: mpsc::Receiver<Packet>) {
     while let Some(packet) = rx.recv().await {
         if let Err(e) = packet.write(&mut writer).await {

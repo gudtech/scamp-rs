@@ -52,11 +52,12 @@ pub fn build_announcement_packet(
 
             // Filter flags to announceable set, sorted alphabetically
             // Perl Announcer.pm:137-139
-            let mut ann_flags: Vec<&str> = action
+            // Perl Announcer.pm:137-139 — filter to announceable set + timeout flags
+            let mut ann_flags: Vec<String> = action
                 .flags
                 .iter()
-                .map(|s| s.as_str())
-                .filter(|f| ANNOUNCEABLE.contains(f))
+                .filter(|f| ANNOUNCEABLE.contains(&f.as_str()) || f.starts_with('t') && f[1..].parse::<u32>().is_ok())
+                .cloned()
                 .collect();
             ann_flags.sort();
             let flags = ann_flags.join(",");
@@ -81,7 +82,7 @@ pub fn build_announcement_packet(
 
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
+        .unwrap_or_default()
         .as_secs_f64();
 
     let effective_weight = if active { weight } else { 0 };

@@ -85,7 +85,7 @@ impl Ticket {
         // Check expiry
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_default()
             .as_secs();
         if now < ticket.validity_start {
             return Err(anyhow!("Ticket not yet valid (starts at {})", ticket.validity_start));

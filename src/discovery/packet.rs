@@ -83,7 +83,6 @@ impl AnnouncementPacket {
             }
             Err(e) => {
                 log::error!("Signature verification error for {}: {}", self.body.info.identity, e);
-                eprintln!("Signature verification error for {}: {}", self.body.info.identity, e);
                 false
             }
         }
