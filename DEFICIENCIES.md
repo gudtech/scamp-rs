@@ -1,7 +1,7 @@
 # scamp-rs Deficiency Report
 
 Comprehensive parity audit against all four reference implementations.
-Last audit: 2026-04-13, after M1-M5 completion. 6 agents: Perl, JS, Go, C# parity + test review + code review.
+Last audit: 2026-04-13, v3 (3rd full 6-agent audit). 87 tests (82 lib + 5 E2E).
 
 ## Verified Correct (no action needed)
 
@@ -14,7 +14,7 @@ Confirmed matching across all implementations:
 - Request correlation: sequential request_id from 1, pending map by request_id
 - Reply: `type="reply"`, request_id copied from request
 - ACK format: decimal string of cumulative bytes
-- EOF body: validated as empty
+- EOF body: validated as empty (client reader)
 - Unknown packet types: Fatal (matches Perl Connection.pm:187)
 - Malformed HEADER JSON: Fatal (matches Perl Connection.pm:148-149)
 - PING/PONG: responds to PING, disabled by default (Perl/Go don't support)
@@ -35,6 +35,8 @@ Confirmed matching across all implementations:
 - Base64 76-char line wrapping matching Perl MIME::Base64
 - Shutdown announcing: weight=0, 10 rounds at 1s (matches Perl)
 - Full bidirectional interop: soatest + simple_request through discovery pipeline
+- Announcement timestamp: seconds as f64 (matches Perl Time::HiRes::time)
+- dispatch_failure: client-side retry (matches JS; A3 was mis-stated, no server change needed)
 
 ## Resolved Deficiencies
 
@@ -73,7 +75,7 @@ Confirmed matching across all implementations:
 | D5b | No send-side flow control watermark | Fixed: client-side pause at 65536 unacked bytes, Notify on ACK |
 | T1 | Zero tests for server hot path | Fixed: 6 tests via duplex streams (echo, error, ping, ACK, multi-chunk) |
 | T2 | Zero tests for client request sending | Fixed: 4 tests (echo, error, large body, timeout) |
-| Q5 | listener.rs exceeds 300-line limit | Fixed: extracted server_connection.rs (299 prod lines + tests) |
+| Q5 | listener.rs exceeds 300-line limit | Fixed: extracted server_connection.rs |
 | BUG | Packet::parse failed on binary body data | Fixed: find \r\n in raw bytes before UTF-8 decode |
 | D10 | No graceful shutdown | Fixed: tokio::select on shutdown watch, 30s drain timeout |
 | D22 | No bus_info() interface resolution | Fixed: bus_info module with getifaddrs, if:ethN, private IP auto-detect |
@@ -90,35 +92,59 @@ Confirmed matching across all implementations:
 | D24 | No multicast receiver/observer | Fixed: observer.rs — joins group, decompresses, injects |
 | D25 | No cache refresh/reload | Fixed: inject_packet + reload_from_cache on ServiceRegistry |
 | T8 | No shared test helpers | Fixed: test_helpers.rs with echo_actions, write_request, etc. |
-
-## All 46 Original Deficiencies Resolved
-
-## Post-Audit Findings (from 2x 6-agent reviews)
-
-### Resolved in audit response
-
-| ID | Description | Resolution |
-|----|-------------|------------|
 | C1 | No Auth.getAuthzTable privilege checking | Fixed: auth::authz module, integrated into dispatch pipeline |
 | C2 | No error_data header field | Fixed: added to PacketHeader, dispatch_failure checks it |
 | C3 | Blocking UDP send_to in async | Fixed: tokio::net::UdpSocket with async .await |
 | C4 | Silent write error swallowing | Fixed: errors logged, early return on broken pipe |
 | I1 | Outgoing flow-control state removed too early | Fixed: removed after response received |
 | L3 | Unused thiserror dependency | Fixed: removed from Cargo.toml |
+| A1 | ScampReply has no error_data field | Fixed: added error_data to ScampReply + send_reply |
+| A2 | register() always sets empty flags | Fixed: register_with_flags() |
+| S1 | Inline tests push files over 300 lines | Fixed: extracted to separate test files |
+| BUG2 | BufReader busy-loop on partial TLS packets | Fixed: manual Vec buffer + AsyncReadExt::read() (server + client) |
+| BUG3 | tokio::io::split deadlock on TLS streams | Fixed: copy_bidirectional proxy through duplex |
+| A3 | Server never sets dispatch_failure | Non-issue: JS reviewer clarified dispatch_failure is client-side |
 
-### Open audit findings (non-blocking, prioritized)
+## All 46 Original + 6 Post-Audit + 3 Session Deficiencies Resolved
+
+## v3 Audit Findings (2026-04-13, 6-agent review)
+
+### High — fix now
 
 | ID | Severity | Description | Source |
 |----|----------|-------------|--------|
-| ~~A1~~ | ~~Medium~~ | ~~ScampReply has no error_data field~~ Fixed: added error_data to ScampReply + send_reply | C#-v2, JS-v2 |
-| ~~A2~~ | ~~Medium~~ | ~~register() always sets empty flags~~ Fixed: register_with_flags() | C#-v2 |
-| A3 | Medium | Rust server never sets error_data:{dispatch_failure:true} | JS-v2 |
+| H1 | High | Proxy task handle leak: from_stream spawns copy_bidirectional but never stores JoinHandle. Orphan tasks + FD leaks on drop. | Elegance-v3 |
+| H2 | High | Server-side flow control dead code: OutgoingReplyState tracks sent/acked but server never waits on ACKs. Large replies sent unbounded. | Elegance-v3 |
+| P1 | High | Out-of-sequence HEADER doesn't close connection (Perl closes, Rust logs and continues) | Perl-v3 |
+
+### Medium — fix before stress testing
+
+| ID | Severity | Description | Source |
+|----|----------|-------------|--------|
+| M1 | Medium | No cap on server/client read buf growth — adversarial stream could OOM | Elegance-v3 |
+| M5 | Medium | Empty ticket bypasses auth (AuthzChecker skips check when ticket is empty) | Elegance-v3 |
+| M6 | Medium | CacheFileAnnouncementIterator drops final record if file lacks trailing delimiter | Elegance-v3 |
+| JS1 | Medium | AuthzChecker allows access for actions missing from authz table (JS denies with "Unconfigured action") | JS-v3 |
+| P2 | Medium | Announcement builder doesn't emit `t<N>` timeout flags | Perl-v3 |
+| P3 | Medium | Server doesn't validate EOF body is empty (client reader does) | Perl-v3 |
+| P4 | Medium | AuthzChecker not plumbed into ScampService::run() — always None, authz is dead code in production | Perl-v3, C#-v3 |
+| F1 | Medium | proto/tests.rs at 396 lines (over 300-line limit) | Standards-v3 |
+| F2 | Medium | service_info/mod.rs has parsing logic (should be in parse.rs) | Standards-v3 |
+
+### Low — polish
+
+| ID | Severity | Description | Source |
+|----|----------|-------------|--------|
+| F3 | Low | Redundant eprintln! alongside log::error! in signature_is_valid() | Standards-v3 |
+| F4 | Low | Three unwrap() on SystemTime that should be unwrap_or_default() | Standards-v3 |
+| M4 | Low | closed AtomicBool uses Relaxed ordering (should be Acquire/Release) | Elegance-v3 |
+| E1 | Low | E2E test 50ms sleep is a race (should use readiness signal) | JS-v3 |
+| E2 | Low | E2E missing 2 of 7 planned scenarios (concurrent connections, auth filtering) | Standards-v3 |
+| A5 | Low | V4 action vectors always empty in announcements | Perl-v2, Go-v3 |
+| A6 | Low | No heartbeat initiation (responds to PING, never sends) | JS-v2, JS-v3 |
+| A7 | Low | Connection pool grows without bound (no eviction) | JS-v2, Elegance-v3 |
 | A4 | Low | Config keys hardcoded (rpc.timeout, beepish.* timeouts, port range) | Perl-v2 |
-| A5 | Low | V4 action vectors always empty in announcements | Perl-v2, Elegance |
-| A6 | Low | No heartbeat initiation (responds to PING, never sends) | JS-v2 |
-| A7 | Low | Connection pool grows without bound (no eviction) | JS-v2, Elegance |
 | A8 | Low | Stale cache behavior divergence (Rust serves, Perl fails) | Perl-v2 |
-| ~~S1~~ | ~~Standards~~ | ~~Inline tests~~ Fixed: extracted to separate files, all under 300 | Standards-v2 |
-| S2 | Standards | service_info/mod.rs has parsing logic (belongs in parse.rs) | Standards-v2 |
-| S3 | Standards | service_registry.rs at ~322 lines | Standards-v2 |
-| S4 | Standards | HANDOFF.md had stale references | Standards-v2 |
+| S2 | Low | HANDOFF.md has stale statements about already-fixed issues | Standards-v3 |
+| M8 | Low | RSA signature verification blocks ServiceRegistry write lock | Elegance-v3 |
+| S3 | Low | service_registry.rs at ~275 lines (resolved from 322, under limit) | Standards-v3 |

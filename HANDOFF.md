@@ -31,17 +31,16 @@ identically to the Perl implementation?" When in doubt, match Perl exactly.
 
 ## Key Files to Read First
 
-- `E2E_TEST_PLAN.md` — plan for end-to-end integration testing in GH Actions
-- `PUNCHLIST.md` — milestone-structured todo list with verification tests
-- `DEFICIENCIES.md` — all 46 original items resolved; audit findings tracked separately
+- `DEFICIENCIES.md` — comprehensive tracking of all findings across 3 audit rounds
+- `E2E_TEST_PLAN.md` — plan for end-to-end integration testing
 - `CODING_STANDARDS.md` — 300-line file limit (tests NOT exempt), no split impl blocks
-- `REVIEW-*-v2.md` — latest 6-agent audit reports (Perl, JS, Go, C#, elegance, standards)
+- `REVIEW-*-v3.md` — latest 6-agent audit reports (Perl, JS, Go, C#, elegance, standards)
 
 ## Current State (as of 2026-04-13)
 
 ### All Milestones Complete (M1-M9)
 
-82 tests (5 ignored for dev environment). CI green (GitHub Actions).
+87 tests (82 lib + 5 E2E, 5 ignored for dev environment). CI green (GitHub Actions).
 
 **Core protocol**: Wire framing, header JSON, ACK/EOF/TXERR, PING/PONG, flow
 control watermark (65536), DATA chunk 2048, `\r\n` strict, sequential msgno.
@@ -59,56 +58,56 @@ service deduplication, failure tracking with exponential backoff.
 (`if:ethN`, private IP auto-detect), announceable flag filtering.
 
 **APIs**: High-level Requester (lookup+connect+send+retry), BeepishClient
-(connection pooling), `error_data` header field for structured error metadata.
+(connection pooling), `error_data` header field for structured error metadata,
+`register_with_flags()` for noauth actions.
 
-### Audit Status (2x 6-agent audits completed)
+**E2E Testing (Phase 1 complete)**: 5 Rust-to-Rust integration tests in
+`tests/e2e_full_stack.rs` — self-signed certs, synthetic cache, full TLS
+roundtrip through discovery pipeline. No external dependencies.
 
-Two full audits have been run. All critical items are resolved:
-- C1: Auth.getAuthzTable privilege checking ✓
-- C2: error_data header field + dispatch_failure detection ✓
-- C3: Blocking UDP in async → tokio::net::UdpSocket ✓
-- C4: Silent write error swallowing → proper error handling ✓
-- I1: Outgoing flow-control lifecycle ✓
+### Critical Bugs Fixed This Session
 
-### Known Remaining Gaps (from v2 audit, non-blocking)
+1. **BufReader busy-loop on partial TLS packets**: `fill_buf()` returns same
+   data when buffer isn't empty, causing infinite loop. Fixed with manual
+   Vec<u8> buffer in both server and client reader.
 
-**Functional gaps (medium/low priority):**
-- ScampReply has no `error_data` field (handlers can't send structured errors)
-- `register()` always sets empty flags (can't register `noauth` actions)
-- Rust server never sets `error_data: {dispatch_failure: true}` on replies
-- Config keys hardcoded (rpc.timeout, beepish.* timeouts, bind port range)
-- V4 action vectors always empty in announcements (v3 compat zone used)
-- No heartbeat initiation (responds to PING but never sends)
-- No connection pool eviction (grows without bound)
-- Stale cache: Rust continues serving (Perl fails fast)
+2. **tokio::io::split deadlock on TLS streams**: TLS read may need to write
+   internally, but split coordinates via a lock. Fixed with `copy_bidirectional`
+   proxy through `tokio::io::duplex`.
 
-**Code quality (from standards + elegance reviews):**
-- Inline tests make connection.rs (415) and server_connection.rs (475) exceed 300 lines
-  → Extract to separate test files (tests are NOT exempt per coding standards)
-- service_info/mod.rs has parsing logic (should be in parse.rs)
-- service_registry.rs at ~322 lines (slightly over)
-- Several `unwrap()` on SystemTime that should use `unwrap_or_default()`
+### v3 Audit Status (3rd 6-agent audit)
+
+All critical items from v1/v2 audits are resolved. v3 audit identified:
+
+**High (3)**: Proxy task handle leak, server-side flow control dead code,
+out-of-sequence HEADER doesn't close connection.
+
+**Medium (9)**: Buffer growth cap, empty ticket auth bypass, cache iterator
+final record, authz table missing action behavior, timeout flag emission,
+server EOF validation, authz not plumbed into run(), proto/tests.rs over 300
+lines, service_info/mod.rs parsing logic placement.
+
+**Low (12)**: See DEFICIENCIES.md for full list.
 
 ### Verified Interop (Docker on gtnet)
 
 | Test | Result |
 |------|--------|
-| Rust client → Perl mainapi (health_check) | ✓ with fingerprint verification |
-| Rust client → Perl mainapi (_meta.documentation, 400KB+) | ✓ multi-packet |
-| Discovery cache parsing (all announcements) | ✓ signatures verified |
-| authorized_services filtering | ✓ matches Perl lssoa output |
-| Perl BEEPish::Client → Rust service (direct) | ✓ echo works |
-| **Perl soatest → Rust service (via discovery)** | **✓ full pipeline** |
-| **Perl Requester->simple_request → Rust (via discovery)** | **✓ full pipeline** |
-| lssoa shows Rust service | ✓ correct identity, sector, weight, fingerprint, actions |
+| Rust client → Perl mainapi (health_check) | pass with fingerprint verification |
+| Rust client → Perl mainapi (_meta.documentation, 400KB+) | pass multi-packet |
+| Discovery cache parsing (all announcements) | pass signatures verified |
+| authorized_services filtering | matches Perl lssoa output |
+| Perl BEEPish::Client → Rust service (direct) | pass echo works |
+| **Perl soatest → Rust service (via discovery)** | **pass full pipeline** |
+| **Perl Requester->simple_request → Rust (via discovery)** | **pass full pipeline** |
+| lssoa shows Rust service | pass correct identity, sector, weight, fingerprint, actions |
 
-### Next Work: E2E Testing
+### Next Work
 
-See `E2E_TEST_PLAN.md` for the full plan. Summary:
-1. **Phase 1 (now)**: Rust-to-Rust E2E test in GH Actions — self-signed certs,
-   synthetic cache file, full TLS request/response through discovery pipeline
-2. **Phase 2**: JS interop test via scamp-js Docker container (lightweight, 1 dep)
-3. **Phase 3**: Perl interop test (heavier, needs backplane deps)
+1. Fix all v3 audit findings (H1-H2, P1, then medium items)
+2. Phase 2 E2E: JS interop test via scamp-js Docker container
+3. Phase 3 E2E: Perl interop test
+4. Comprehensive interop load/stress testing against gud dev services
 
 ## Dev Environment
 
