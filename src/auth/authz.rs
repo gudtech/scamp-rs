@@ -50,16 +50,21 @@ impl AuthzChecker {
         // 2. Fetch or use cached authz table
         let table = self.get_table().await?;
 
-        // 3. Look up required privileges for this action
+        // 3. Look up required privileges for this action — deny by default
         let key = action.to_lowercase();
-        if let Some(required_privs) = table.get(&key) {
-            for &priv_id in required_privs {
-                if !ticket.has_privilege(priv_id) {
-                    return Err(anyhow!("Missing required privilege {} for action {}", priv_id, action));
+        match table.get(&key) {
+            Some(required_privs) => {
+                for &priv_id in required_privs {
+                    if !ticket.has_privilege(priv_id) {
+                        return Err(anyhow!("Missing required privilege {} for action {}", priv_id, action));
+                    }
                 }
             }
+            None => {
+                // JS1: Unconfigured action must be denied — JS denies with "Unconfigured action"
+                return Err(anyhow!("Unconfigured action: {}", action));
+            }
         }
-        // If action not in table, no specific privileges required
 
         Ok(ticket)
     }
