@@ -22,7 +22,7 @@ pub(crate) async fn send_reply(
         envelope: EnvelopeFormat::Json,
         error: reply.error,
         error_code: reply.error_code,
-        error_data: None,
+        error_data: reply.error_data,
         request_id,
         client_id: FlexInt(0),
         ticket: String::new(),

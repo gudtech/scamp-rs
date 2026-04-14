@@ -21,6 +21,9 @@ pub struct ScampReply {
     pub body: Vec<u8>,
     pub error: Option<String>,
     pub error_code: Option<String>,
+    /// A1: Structured error metadata (e.g., `{"dispatch_failure": true}`).
+    /// Matches JS connection.js error_data and C# ErrorData.
+    pub error_data: Option<serde_json::Value>,
 }
 
 impl ScampReply {
@@ -29,6 +32,7 @@ impl ScampReply {
             body,
             error: None,
             error_code: None,
+            error_data: None,
         }
     }
 
@@ -37,6 +41,17 @@ impl ScampReply {
             body: vec![],
             error: Some(message),
             error_code: Some(code),
+            error_data: None,
+        }
+    }
+
+    /// Create an error reply with structured error_data metadata.
+    pub fn error_with_data(message: String, code: String, data: serde_json::Value) -> Self {
+        ScampReply {
+            body: vec![],
+            error: Some(message),
+            error_code: Some(code),
+            error_data: Some(data),
         }
     }
 }

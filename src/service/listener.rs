@@ -81,6 +81,16 @@ impl ScampService {
         F: Fn(ScampRequest) -> Fut + Send + Sync + 'static,
         Fut: std::future::Future<Output = ScampReply> + Send + 'static,
     {
+        self.register_with_flags(action, version, &[], handler);
+    }
+
+    /// Register an action with explicit flags (e.g., ["noauth"]).
+    /// A2: Without this, the AuthzChecker's noauth bypass is dead code.
+    pub fn register_with_flags<F, Fut>(&mut self, action: &str, version: i32, flags: &[&str], handler: F)
+    where
+        F: Fn(ScampRequest) -> Fut + Send + Sync + 'static,
+        Fut: std::future::Future<Output = ScampReply> + Send + 'static,
+    {
         let key = format!("{}.v{}", action.to_lowercase(), version);
         let handler: ActionHandlerFn = Arc::new(move |req| Box::pin(handler(req)));
         self.actions.insert(
@@ -88,7 +98,7 @@ impl ScampService {
             RegisteredAction {
                 name: action.to_string(),
                 version,
-                flags: vec![],
+                flags: flags.iter().map(|s| s.to_string()).collect(),
                 handler,
             },
         );
