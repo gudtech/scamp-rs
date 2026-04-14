@@ -6,7 +6,7 @@
 use log;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
+use tokio::io::{AsyncRead, AsyncReadExt};
 use tokio::sync::{mpsc, oneshot, Mutex, Notify};
 
 use super::ScampResponse;
@@ -38,19 +38,22 @@ pub(super) async fn reader_task(
     outgoing: OutgoingMap,
     ack_notify: Arc<Notify>,
 ) {
-    let mut reader = BufReader::new(reader);
+    let mut reader = reader;
+    let mut buf = Vec::with_capacity(8192);
     let mut incoming: HashMap<u64, IncomingMessage> = HashMap::new();
     let mut next_incoming_msg_no: u64 = 0; // Starts at 0 — all implementations agree
 
     loop {
-        let buf = match reader.fill_buf().await {
-            Ok(buf) if buf.is_empty() => break,
-            Ok(buf) => buf,
+        let mut tmp = [0u8; 4096];
+        let n = match reader.read(&mut tmp).await {
+            Ok(0) => break,
+            Ok(n) => n,
             Err(e) => {
                 log::error!("Read error: {}", e);
                 break;
             }
         };
+        buf.extend_from_slice(&tmp[..n]);
 
         let mut consumed = 0;
         while consumed < buf.len() {
@@ -77,7 +80,7 @@ pub(super) async fn reader_task(
                 }
             }
         }
-        reader.consume(consumed);
+        buf.drain(..consumed);
     }
 
     // Connection closed

@@ -32,7 +32,6 @@ pub struct BeepishClient {
     connections: Arc<Mutex<HashMap<String, Arc<ConnectionHandle>>>>,
 }
 
-/// Handle to a single connection with background reader/writer tasks.
 pub struct ConnectionHandle {
     writer_tx: mpsc::Sender<Packet>,
     pending: Arc<Mutex<HashMap<i64, oneshot::Sender<ScampResponse>>>>,
@@ -82,12 +81,16 @@ impl BeepishClient {
         conn.send_request(action, version, envelope, ticket, client_id, body, dur).await
     }
 }
-
 impl ConnectionHandle {
     /// Set up reader/writer tasks over any async stream.
-    /// Used by `connect()` after TLS and by tests with in-memory streams.
+    /// Proxies through a duplex to avoid split-lock contention on TLS streams.
     pub(crate) fn from_stream(stream: impl AsyncRead + AsyncWrite + Unpin + Send + 'static) -> Self {
-        let (read_half, write_half) = tokio::io::split(stream);
+        let (proxy_client, mut proxy_server) = tokio::io::duplex(65536);
+        let mut real = stream;
+        tokio::spawn(async move {
+            let _ = tokio::io::copy_bidirectional(&mut real, &mut proxy_server).await;
+        });
+        let (read_half, write_half) = tokio::io::split(proxy_client);
         let (writer_tx, writer_rx) = mpsc::channel::<Packet>(256);
         let pending: Arc<Mutex<HashMap<i64, oneshot::Sender<ScampResponse>>>> = Arc::new(Mutex::new(HashMap::new()));
         let closed = Arc::new(AtomicBool::new(false));
@@ -184,7 +187,7 @@ impl ConnectionHandle {
             message_type: MessageType::Request,
             version,
         };
-        self.outgoing.lock().await.insert(msg_no, reader::OutgoingState::default()); // D5
+        self.outgoing.lock().await.insert(msg_no, reader::OutgoingState::default());
         // HEADER
         if self
             .writer_tx

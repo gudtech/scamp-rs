@@ -47,6 +47,12 @@ impl Config {
         Ok(Self { root: Arc::new(root) })
     }
 
+    /// Create a Config from a config string (for testing without a real soa.conf file).
+    pub fn from_content(content: &str) -> Result<Self> {
+        let root = Self::parse_config(content, None)?;
+        Ok(Self { root: Arc::new(root) })
+    }
+
     pub fn get<T: std::str::FromStr>(&self, key: &str) -> Option<Result<T, T::Err>> {
         match self.root.get(key) {
             Some(ConfElement { value: Some(value), .. }) => Some(value.parse()),

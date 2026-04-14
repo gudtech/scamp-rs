@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
-use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::sync::Mutex;
 
 use super::handler::{RegisteredAction, ScampReply, ScampRequest};
@@ -38,22 +38,23 @@ pub(crate) async fn handle_connection(
     actions: Arc<HashMap<String, RegisteredAction>>,
     authz: Option<Arc<AuthzChecker>>,
 ) {
-    let (reader, writer) = tokio::io::split(stream);
+    let (mut reader, writer) = tokio::io::split(stream);
     let writer: ServerWriter = Arc::new(Mutex::new(Box::new(writer)));
-    let mut reader = BufReader::new(reader);
+    let mut buf = Vec::with_capacity(8192);
     let mut incoming: HashMap<u64, IncomingRequest> = HashMap::new();
     let mut outgoing: HashMap<u64, OutgoingReplyState> = HashMap::new();
     let mut next_incoming_msg_no: u64 = 0;
     let next_outgoing_msg_no = AtomicU64::new(0);
 
     loop {
-        // Perl Connection.pm:131-135 — _adj_timeout: no timeout when busy,
-        // configured timeout when idle. Server default: 120s.
+        // Read more data from the stream.
+        // Perl Connection.pm:131-135 — no timeout when busy, idle timeout otherwise.
         let is_busy = !incoming.is_empty() || !outgoing.is_empty();
-        let buf = if is_busy {
-            match reader.fill_buf().await {
-                Ok(buf) if buf.is_empty() => break,
-                Ok(buf) => buf,
+        let mut tmp = [0u8; 4096];
+        let n = if is_busy {
+            match reader.read(&mut tmp).await {
+                Ok(0) => break,
+                Ok(n) => n,
                 Err(e) => {
                     log::debug!("Read error: {}", e);
                     break;
@@ -61,9 +62,9 @@ pub(crate) async fn handle_connection(
             }
         } else {
             let idle_timeout = std::time::Duration::from_secs(DEFAULT_SERVER_TIMEOUT_SECS);
-            match tokio::time::timeout(idle_timeout, reader.fill_buf()).await {
-                Ok(Ok(buf)) if buf.is_empty() => break,
-                Ok(Ok(buf)) => buf,
+            match tokio::time::timeout(idle_timeout, reader.read(&mut tmp)).await {
+                Ok(Ok(0)) => break,
+                Ok(Ok(n)) => n,
                 Ok(Err(e)) => {
                     log::debug!("Read error: {}", e);
                     break;
@@ -74,7 +75,9 @@ pub(crate) async fn handle_connection(
                 }
             }
         };
+        buf.extend_from_slice(&tmp[..n]);
 
+        // Parse all complete packets from the buffer.
         let mut consumed = 0;
         while consumed < buf.len() {
             match Packet::parse(&buf[consumed..]) {
@@ -100,7 +103,7 @@ pub(crate) async fn handle_connection(
                 }
             }
         }
-        reader.consume(consumed);
+        buf.drain(..consumed);
     }
 }
 
