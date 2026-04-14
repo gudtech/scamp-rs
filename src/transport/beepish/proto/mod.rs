@@ -1,6 +1,8 @@
 //! SCAMP BEEPish wire protocol types: packet framing, header JSON, serde.
 
 #[cfg(test)]
+mod fixture_tests;
+#[cfg(test)]
 pub(crate) mod fixtures;
 mod header;
 mod packet;

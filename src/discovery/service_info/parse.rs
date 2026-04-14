@@ -1,10 +1,12 @@
 //! V3 and V4 announcement action parsing, including RLE decoding.
 
 use itertools::izip;
+use once_cell::sync::Lazy;
+use regex::Regex;
 use serde::de::DeserializeOwned;
 use serde_json::{from_value, Map, Value};
 
-use super::{Action, Flag, PacketSection, ServiceInfoParseError};
+use super::{Action, AnnouncementBody, AnnouncementParams, CrudOp, Flag, PacketSection, ServiceInfo, ServiceInfoParseError};
 
 pub(super) fn parse_v3_actions(
     obj: &[Value],
@@ -41,7 +43,7 @@ pub(super) fn parse_v3_actions(
                                 path,
                                 version,
                                 pathver,
-                                flags: flags.split(',').filter(|s| !s.is_empty()).map(Flag::parse_str).collect(),
+                                flags: flags.split(',').filter(|s| !s.is_empty()).map(parse_flag).collect(),
                                 sector: sector.to_string(),
                                 envelopes: envelopes.to_vec(),
                                 packet_section: PacketSection::V3,
@@ -81,7 +83,7 @@ pub(super) fn parse_v4_actions(obj: &Map<String, Value>, actions: &mut Vec<Actio
             path,
             version: ver,
             pathver,
-            flags: flags.split(',').filter(|s| !s.is_empty()).map(Flag::parse_str).collect(),
+            flags: flags.split(',').filter(|s| !s.is_empty()).map(parse_flag).collect(),
             sector: sector.to_lowercase(),
             envelopes: envelopes.split(',').filter(|s| !s.is_empty()).map(|s| s.to_string()).collect(),
             packet_section: PacketSection::V4,
@@ -124,5 +126,89 @@ where
             let value: T = from_value(value.clone()).map_err(|e| ServiceInfoParseError::RLEValue(name, 0, e))?;
             Ok(vec![value; len])
         }
+    }
+}
+
+/// Parse an announcement JSON blob into an AnnouncementBody.
+/// F2: Moved from mod.rs — parsing logic belongs in parse.rs.
+pub(super) fn parse_announcement_body(v: &str) -> Result<AnnouncementBody, ServiceInfoParseError> {
+    let value: Value = serde_json::from_str(v)?;
+    let array = value.as_array().ok_or(ServiceInfoParseError::ExpectedJsonArray)?;
+    if array.len() != 9 {
+        return Err(ServiceInfoParseError::InvalidRootArray);
+    }
+
+    let version = array[0].as_u64().ok_or(ServiceInfoParseError::MissingField("version"))?;
+    if version != 3 {
+        return Err(ServiceInfoParseError::InvalidField("version"));
+    }
+
+    let identity = array[1]
+        .as_str()
+        .ok_or(ServiceInfoParseError::MissingField("identity"))?
+        .to_string();
+    let v3_sector = array[2].as_str().ok_or(ServiceInfoParseError::MissingField("sector"))?.to_string();
+    let weight = array[3].as_u64().ok_or(ServiceInfoParseError::MissingField("weight"))? as u32;
+    let interval = array[4].as_u64().ok_or(ServiceInfoParseError::MissingField("interval"))? as u32;
+    let uri = array[5].as_str().ok_or(ServiceInfoParseError::MissingField("uri"))?.to_string();
+
+    let envelopes_and_v4 = array[6]
+        .as_array()
+        .ok_or(ServiceInfoParseError::MissingField("envelopes_and_v4actions"))?;
+    let v3_actions = array[7].as_array().ok_or(ServiceInfoParseError::MissingField("v3_actions"))?;
+    let timestamp = array[8].as_f64().ok_or(ServiceInfoParseError::MissingField("timestamp"))?;
+
+    let mut v3_envelopes: Vec<String> = Vec::new();
+    let mut actions: Vec<Action> = Vec::new();
+
+    for value in envelopes_and_v4 {
+        match value {
+            Value::String(envelope) => v3_envelopes.push(envelope.to_string()),
+            Value::Object(obj) => parse_v4_actions(obj, &mut actions)?,
+            _ => {}
+        }
+    }
+    parse_v3_actions(v3_actions, &v3_sector, &v3_envelopes, &mut actions)?;
+
+    Ok(AnnouncementBody {
+        info: ServiceInfo {
+            identity,
+            uri,
+            fingerprint: None,
+        },
+        params: AnnouncementParams {
+            weight,
+            interval,
+            timestamp,
+        },
+        actions,
+    })
+}
+
+/// Parse a flag string into a Flag enum value.
+pub(super) fn parse_flag(v: &str) -> Flag {
+    static TIMEOUT_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^t(\d+)$").unwrap());
+    match v {
+        "noauth" => Flag::NoAuth,
+        _ => {
+            if let Some(caps) = TIMEOUT_RE.captures(v) {
+                Flag::Timeout(caps[1].parse().unwrap())
+            } else if let Some(crud) = parse_crud_op(v) {
+                Flag::CrudOp(crud)
+            } else {
+                Flag::Other(v.to_string())
+            }
+        }
+    }
+}
+
+/// Parse a CRUD operation string.
+pub(super) fn parse_crud_op(v: &str) -> Option<CrudOp> {
+    match v {
+        "create" => Some(CrudOp::Create),
+        "read" => Some(CrudOp::Read),
+        "update" => Some(CrudOp::Update),
+        "destroy" => Some(CrudOp::Delete),
+        _ => None,
     }
 }
