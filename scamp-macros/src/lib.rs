@@ -145,7 +145,11 @@ pub fn rpc(attr: TokenStream, item: TokenStream) -> TokenStream {
                 flags: &[#(#flags_tokens),*],
                 sector_fn: || #sector_expr,
                 make_handler: || ::scamp::rpc_support::make_handler_erased(
-                    |ctx, state| Box::pin(#fn_name(ctx, state))
+                    |ctx, state| Box::pin(async move {
+                        ::scamp::rpc_support::IntoScampReply::into_scamp_reply(
+                            #fn_name(ctx, state).await
+                        )
+                    })
                 ),
             }
         }

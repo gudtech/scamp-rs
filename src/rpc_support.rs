@@ -10,6 +10,67 @@ use std::sync::Arc;
 
 use crate::service::handler::ScampReply;
 
+// ---------------------------------------------------------------------------
+// IntoScampReply — Axum-style flexible return types for handlers
+// ---------------------------------------------------------------------------
+
+/// Trait for types that can be converted into a ScampReply.
+/// Implement this for custom return types. The `#[rpc]` macro calls
+/// `.into_scamp_reply()` on whatever the handler returns.
+pub trait IntoScampReply {
+    fn into_scamp_reply(self) -> ScampReply;
+}
+
+impl IntoScampReply for ScampReply {
+    fn into_scamp_reply(self) -> ScampReply {
+        self
+    }
+}
+
+impl IntoScampReply for Vec<u8> {
+    fn into_scamp_reply(self) -> ScampReply {
+        ScampReply::ok(self)
+    }
+}
+
+impl IntoScampReply for String {
+    fn into_scamp_reply(self) -> ScampReply {
+        ScampReply::ok(self.into_bytes())
+    }
+}
+
+impl IntoScampReply for &str {
+    fn into_scamp_reply(self) -> ScampReply {
+        ScampReply::ok(self.as_bytes().to_vec())
+    }
+}
+
+impl<T: IntoScampReply, E: std::fmt::Display> IntoScampReply for Result<T, E> {
+    fn into_scamp_reply(self) -> ScampReply {
+        match self {
+            Ok(v) => v.into_scamp_reply(),
+            Err(e) => ScampReply::error(e.to_string(), "error".to_string()),
+        }
+    }
+}
+
+/// Wrapper for returning JSON-serialized responses from handlers.
+/// Usage: `return Json(my_struct)` or `Ok(Json(my_struct))`
+pub struct Json<T: serde::Serialize>(pub T);
+
+impl<T: serde::Serialize> IntoScampReply for Json<T> {
+    fn into_scamp_reply(self) -> ScampReply {
+        match serde_json::to_vec(&self.0) {
+            Ok(body) => ScampReply::ok(body),
+            Err(e) => ScampReply::error(e.to_string(), "serialization_error".to_string()),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// RequestContext
+// ---------------------------------------------------------------------------
+
 /// A request context passed to `#[rpc]` handlers.
 pub struct RequestContext {
     pub action: String,

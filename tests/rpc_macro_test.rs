@@ -1,6 +1,6 @@
 //! Test the #[rpc] macro and auto-discovery.
 
-use scamp::rpc_support::{auto_discover_into, RequestContext};
+use scamp::rpc_support::{auto_discover_into, IntoScampReply, Json, RequestContext};
 use scamp::service::{ScampReply, ScampService};
 use std::sync::Arc;
 
@@ -9,34 +9,45 @@ struct AppState {
     greeting: String,
 }
 
-// -- Actions in different "namespaces" (module simulation) --
-// In a real app these would be in src/actions/api/status.rs etc.
-// For testing, we define them inline — module_path!() will reflect this test file.
+// -- Handlers with various return types (Axum-style flexibility) --
 
+// Returns ScampReply directly (explicit control)
 #[scamp::rpc(noauth, namespace = "API.Status")]
 async fn health_check(_ctx: RequestContext, _state: &AppState) -> ScampReply {
     ScampReply::ok(b"ok".to_vec())
 }
 
+// Returns a String (auto-converted to reply body)
 #[scamp::rpc(namespace = "API.Status")]
-async fn version(_ctx: RequestContext, state: &AppState) -> ScampReply {
-    ScampReply::ok(state.greeting.as_bytes().to_vec())
+async fn version(_ctx: RequestContext, state: &AppState) -> String {
+    state.greeting.clone()
 }
 
+// Returns Vec<u8> (raw bytes)
 #[scamp::rpc(read, namespace = "Constant.Ship.Carrier")]
-async fn fetch(ctx: RequestContext, _state: &AppState) -> ScampReply {
-    // Echo back the body to prove it works
-    ScampReply::ok(ctx.body)
+async fn fetch(ctx: RequestContext, _state: &AppState) -> Vec<u8> {
+    ctx.body
 }
 
+// Returns Result — errors auto-convert to error replies
 #[scamp::rpc(version = 2, timeout = 600, namespace = "Order.Shipment")]
-async fn track(ctx: RequestContext, _state: &AppState) -> ScampReply {
-    ScampReply::ok(ctx.body)
+async fn track(ctx: RequestContext, _state: &AppState) -> anyhow::Result<Vec<u8>> {
+    if ctx.body.is_empty() {
+        anyhow::bail!("tracking number required");
+    }
+    Ok(ctx.body)
 }
 
+// Returns Json<T> — auto-serialized
+#[scamp::rpc(noauth, namespace = "API.Status")]
+async fn info(_ctx: RequestContext, state: &AppState) -> Json<serde_json::Value> {
+    Json(serde_json::json!({ "greeting": state.greeting }))
+}
+
+// Returns &str (static)
 #[scamp::rpc(noauth, sector = "background", namespace = "Background.Worker")]
-async fn process(_ctx: RequestContext, _state: &AppState) -> ScampReply {
-    ScampReply::ok(b"processed".to_vec())
+async fn process(_ctx: RequestContext, _state: &AppState) -> &'static str {
+    "processed"
 }
 
 #[test]
@@ -58,6 +69,7 @@ fn test_auto_discover_registers_actions() {
         names
     );
     assert!(names.contains(&"API.Status.version.v1".to_string()), "missing version: {:?}", names);
+    assert!(names.contains(&"API.Status.info.v1".to_string()), "missing info: {:?}", names);
     assert!(
         names.contains(&"Constant.Ship.Carrier.fetch.v1".to_string()),
         "missing fetch: {:?}",
