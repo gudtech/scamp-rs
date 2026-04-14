@@ -15,6 +15,7 @@ use tokio_native_tls::TlsAcceptor;
 use super::announce;
 use super::handler::{ActionHandlerFn, ActionInfo, RegisteredAction};
 use super::server_connection;
+use crate::auth::authz::AuthzChecker;
 
 /// SCAMP service that listens for incoming connections and dispatches requests.
 pub struct ScampService {
@@ -30,6 +31,7 @@ pub struct ScampService {
     key_pem: Option<Vec<u8>>,
     cert_pem: Option<Vec<u8>>,
     announce_ip: Option<String>,
+    authz: Option<Arc<AuthzChecker>>,
 }
 
 impl ScampService {
@@ -49,6 +51,7 @@ impl ScampService {
             key_pem: None,
             cert_pem: None,
             announce_ip: None,
+            authz: None,
         }
     }
 
@@ -69,6 +72,12 @@ impl ScampService {
 
     pub fn set_announce_ip(&mut self, ip: &str) {
         self.announce_ip = Some(ip.to_string());
+    }
+
+    /// Set the AuthzChecker for ticket-based authorization.
+    /// When set, non-noauth actions require a valid ticket with appropriate privileges.
+    pub fn set_authz(&mut self, authz: Arc<AuthzChecker>) {
+        self.authz = Some(authz);
     }
 
     /// Snapshot of registered action info for use by the announcer task.
@@ -169,6 +178,7 @@ impl ScampService {
         let listener = self.listener.ok_or_else(|| anyhow!("Not bound — call bind_pem() first"))?;
         let tls_acceptor = self.tls_acceptor.ok_or_else(|| anyhow!("Not bound — call bind_pem() first"))?;
         let actions = Arc::new(self.actions);
+        let authz = self.authz;
         let active_connections = Arc::new(AtomicU64::new(0));
 
         // Accept connections until shutdown
@@ -179,6 +189,7 @@ impl ScampService {
                     stream.set_nodelay(true)?;
                     let tls_acceptor = tls_acceptor.clone();
                     let actions = actions.clone();
+                    let authz = authz.clone();
                     let active = active_connections.clone();
                     active.fetch_add(1, Ordering::Relaxed);
 
@@ -186,7 +197,7 @@ impl ScampService {
                         match tls_acceptor.accept(stream).await {
                             Ok(tls_stream) => {
                                 log::debug!("Accepted connection from {}", peer_addr);
-                                server_connection::handle_connection(tls_stream, actions, None).await;
+                                server_connection::handle_connection(tls_stream, actions, authz).await;
                             }
                             Err(e) => {
                                 log::error!("TLS accept failed from {}: {}", peer_addr, e);

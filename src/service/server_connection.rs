@@ -247,7 +247,14 @@ async fn dispatch_and_reply(
         .map(|a| a.flags.iter().any(|f| f == "noauth"))
         .unwrap_or(false);
     if let Some(checker) = authz {
-        if !noauth && !msg.header.ticket.is_empty() {
+        if !noauth {
+            // M5: Empty ticket on a non-noauth action must be denied
+            if msg.header.ticket.is_empty() {
+                log::warn!("No ticket for non-noauth action {}", action_key);
+                let reply = ScampReply::error("Authentication required".to_string(), "unauthorized".to_string());
+                send_reply(reply, request_id, next_outgoing_msg_no, outgoing, writer).await;
+                return;
+            }
             if let Err(e) = checker.check_access(&msg.header.action, &msg.header.ticket).await {
                 log::warn!("Authorization denied for {}: {}", action_key, e);
                 let reply = ScampReply::error(e.to_string(), "unauthorized".to_string());

@@ -30,7 +30,16 @@ impl<R: Read> Iterator for CacheFileAnnouncementIterator<R> {
 
         loop {
             let (consume, matched) = match self.reader.fill_buf() {
-                Ok(buffer) if buffer.is_empty() => return None, // EOF
+                Ok(buffer) if buffer.is_empty() => {
+                    // M6: EOF — yield any accumulated data as final record
+                    if announcement_data.is_empty() {
+                        return None;
+                    }
+                    match String::from_utf8(announcement_data) {
+                        Ok(data) => return Some(AnnouncementPacket::parse(&data).map_err(Into::into)),
+                        Err(e) => return Some(Err(e.into())),
+                    }
+                }
                 Ok(buffer) => {
                     if let Some(pos) = buffer.windows(delimiter_bytes.len()).position(|window| window == delimiter_bytes) {
                         announcement_data.extend_from_slice(&buffer[..pos]);
