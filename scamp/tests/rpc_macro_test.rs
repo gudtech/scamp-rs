@@ -1,6 +1,6 @@
 //! Test the #[rpc] macro and auto-discovery.
 
-use scamp::rpc_support::{auto_discover_into, IntoScampReply, Json, RequestContext};
+use scamp::rpc_support::{auto_discover_into, Json, RequestContext};
 use scamp::service::{ScampReply, ScampService};
 use std::sync::Arc;
 
