@@ -8,6 +8,9 @@ pub(crate) mod handler;
 mod listener;
 pub mod multicast;
 pub(crate) mod server_connection;
+#[cfg(test)]
+mod server_connection_tests;
+mod server_reply;
 
 pub use handler::{ActionHandlerFn, ActionInfo, ScampReply, ScampRequest};
 pub use listener::ScampService;

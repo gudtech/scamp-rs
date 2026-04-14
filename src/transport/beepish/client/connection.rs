@@ -1,7 +1,6 @@
 //! Connection pooling and request sending.
 
 use anyhow::{anyhow, Context, Result};
-use log;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering};
 use std::sync::Arc;
@@ -19,19 +18,8 @@ use crate::transport::beepish::proto::{EnvelopeFormat, FlexInt, MessageType, Pac
 
 /// Default per-request (RPC) timeout — Perl ServiceInfo.pm:257
 pub const DEFAULT_RPC_TIMEOUT_SECS: u64 = 75;
+const FLOW_CONTROL_WATERMARK: u64 = 65536; // JS connection.js:4
 
-/// Default client connection idle timeout — Perl Client.pm:40
-#[allow(dead_code)]
-pub const DEFAULT_CLIENT_TIMEOUT_SECS: u64 = 90;
-
-/// Default server connection idle timeout — Perl Server.pm:58
-#[allow(dead_code)]
-pub const DEFAULT_SERVER_TIMEOUT_SECS: u64 = 120;
-
-/// Send-side flow control watermark — JS connection.js:4
-const FLOW_CONTROL_WATERMARK: u64 = 65536;
-
-/// A SCAMP response received from a service.
 #[derive(Debug)]
 pub struct ScampResponse {
     pub header: PacketHeader,
@@ -39,7 +27,6 @@ pub struct ScampResponse {
     pub error: Option<String>,
 }
 
-/// High-level SCAMP client that manages connections to services.
 pub struct BeepishClient {
     config: Config,
     connections: Arc<Mutex<HashMap<String, Arc<ConnectionHandle>>>>,
@@ -180,15 +167,10 @@ impl ConnectionHandle {
         if self.closed.load(Ordering::Relaxed) {
             return Err(anyhow!("Connection is closed"));
         }
-
         let request_id = self.next_request_id.fetch_add(1, Ordering::Relaxed);
         let msg_no = self.next_outgoing_msg_no.fetch_add(1, Ordering::Relaxed);
         let (response_tx, response_rx) = oneshot::channel();
-
-        {
-            self.pending.lock().await.insert(request_id, response_tx);
-        }
-
+        self.pending.lock().await.insert(request_id, response_tx);
         let header = PacketHeader {
             action: action.to_string(),
             envelope,
@@ -202,12 +184,7 @@ impl ConnectionHandle {
             message_type: MessageType::Request,
             version,
         };
-
-        // Register outgoing message for ACK tracking (D5)
-        {
-            self.outgoing.lock().await.insert(msg_no, reader::OutgoingState::default());
-        }
-
+        self.outgoing.lock().await.insert(msg_no, reader::OutgoingState::default()); // D5
         // HEADER
         if self
             .writer_tx
@@ -220,20 +197,16 @@ impl ConnectionHandle {
             .await
             .is_err()
         {
-            self.pending.lock().await.remove(&request_id);
-            self.outgoing.lock().await.remove(&msg_no);
+            self.cleanup_request(request_id, msg_no).await;
             return Err(anyhow!("Connection closed while sending header"));
         }
-
         // DATA chunks — track bytes sent for ACK validation
         let mut offset = 0;
         while offset < body.len() {
-            // D5b: Flow control — wait if unacked bytes >= watermark
-            // JS connection.js:298: pause when sent-acked >= 65536
+            // D5b: Flow control — pause when sent-acked >= watermark (JS connection.js:298)
             loop {
                 if self.closed.load(Ordering::Relaxed) {
-                    self.pending.lock().await.remove(&request_id);
-                    self.outgoing.lock().await.remove(&msg_no);
+                    self.cleanup_request(request_id, msg_no).await;
                     return Err(anyhow!("Connection closed during flow control wait"));
                 }
                 let over_watermark = {
@@ -246,7 +219,6 @@ impl ConnectionHandle {
                 }
                 self.ack_notify.notified().await;
             }
-
             let end = (offset + DATA_CHUNK_SIZE).min(body.len());
             let chunk_len = (end - offset) as u64;
             if self
@@ -260,18 +232,14 @@ impl ConnectionHandle {
                 .await
                 .is_err()
             {
-                self.pending.lock().await.remove(&request_id);
-                self.outgoing.lock().await.remove(&msg_no);
+                self.cleanup_request(request_id, msg_no).await;
                 return Err(anyhow!("Connection closed while sending data"));
             }
-            {
-                if let Some(s) = self.outgoing.lock().await.get_mut(&msg_no) {
-                    s.sent += chunk_len;
-                }
+            if let Some(s) = self.outgoing.lock().await.get_mut(&msg_no) {
+                s.sent += chunk_len;
             }
             offset = end;
         }
-
         // EOF (empty body — Perl Connection.pm:162)
         if self
             .writer_tx
@@ -284,12 +252,9 @@ impl ConnectionHandle {
             .await
             .is_err()
         {
-            self.pending.lock().await.remove(&request_id);
-            self.outgoing.lock().await.remove(&msg_no);
+            self.cleanup_request(request_id, msg_no).await;
             return Err(anyhow!("Connection closed while sending EOF"));
         }
-
-        // Wait for response, then clean up outgoing state.
         // Outgoing state kept alive until response arrives so ACK validation
         // works for the full request lifecycle (I1 from audit).
         let result = match timeout(timeout_duration, response_rx).await {
@@ -302,6 +267,11 @@ impl ConnectionHandle {
         };
         self.outgoing.lock().await.remove(&msg_no);
         result
+    }
+
+    async fn cleanup_request(&self, request_id: i64, msg_no: u64) {
+        self.pending.lock().await.remove(&request_id);
+        self.outgoing.lock().await.remove(&msg_no);
     }
 }
 
@@ -323,93 +293,5 @@ async fn writer_task(mut writer: impl AsyncWrite + Unpin, mut rx: mpsc::Receiver
             log::error!("Error flushing writer: {}", e);
             break;
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::service::server_connection;
-    use crate::test_helpers::echo_actions;
-
-    #[tokio::test]
-    async fn test_client_echo() {
-        let (client_stream, server_stream) = tokio::io::duplex(65536);
-        let actions = echo_actions();
-        let _server = tokio::spawn(server_connection::handle_connection(server_stream, actions, None));
-
-        let conn = ConnectionHandle::from_stream(client_stream);
-        let resp = conn
-            .send_request(
-                "echo",
-                1,
-                EnvelopeFormat::Json,
-                "",
-                0,
-                b"hello from client".to_vec(),
-                Duration::from_secs(5),
-            )
-            .await
-            .unwrap();
-
-        assert!(resp.error.is_none());
-        assert_eq!(resp.body, b"hello from client");
-        assert_eq!(resp.header.message_type, MessageType::Reply);
-        assert_eq!(resp.header.request_id.0, 1);
-    }
-
-    #[tokio::test]
-    async fn test_client_unknown_action_error() {
-        let (client_stream, server_stream) = tokio::io::duplex(65536);
-        let _server = tokio::spawn(server_connection::handle_connection(server_stream, echo_actions(), None));
-
-        let conn = ConnectionHandle::from_stream(client_stream);
-        let resp = conn
-            .send_request(
-                "nonexistent",
-                1,
-                EnvelopeFormat::Json,
-                "",
-                0,
-                b"{}".to_vec(),
-                Duration::from_secs(5),
-            )
-            .await
-            .unwrap();
-
-        assert!(resp.header.error.as_ref().unwrap().contains("No such action"));
-        assert_eq!(resp.header.error_code.as_deref(), Some("not_found"));
-    }
-
-    #[tokio::test]
-    async fn test_client_large_body() {
-        let (client_stream, server_stream) = tokio::io::duplex(65536);
-        let _server = tokio::spawn(server_connection::handle_connection(server_stream, echo_actions(), None));
-
-        let body = vec![0xABu8; 5000];
-        let conn = ConnectionHandle::from_stream(client_stream);
-        let resp = conn
-            .send_request("echo", 1, EnvelopeFormat::Json, "", 0, body.clone(), Duration::from_secs(5))
-            .await
-            .unwrap();
-
-        assert!(resp.error.is_none());
-        assert_eq!(resp.body.len(), 5000);
-        assert_eq!(resp.body, body);
-    }
-
-    #[tokio::test]
-    async fn test_client_request_timeout() {
-        // Server that accepts but never responds
-        let (client_stream, _server_stream) = tokio::io::duplex(65536);
-        let conn = ConnectionHandle::from_stream(client_stream);
-
-        let result = conn
-            .send_request("echo", 1, EnvelopeFormat::Json, "", 0, b"{}".to_vec(), Duration::from_millis(100))
-            .await;
-
-        assert!(result.is_err());
-        let err = result.unwrap_err().to_string();
-        assert!(err.contains("timed out"), "Expected timeout error, got: {}", err);
     }
 }

@@ -2,16 +2,15 @@
 //! Matches Perl Transport::BEEPish::Server.pm connection handling.
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader};
 use tokio::sync::Mutex;
 
 use super::handler::{RegisteredAction, ScampReply, ScampRequest};
+use super::server_reply::send_reply;
 use crate::auth::authz::AuthzChecker;
-use crate::transport::beepish::proto::{
-    EnvelopeFormat, FlexInt, MessageType, Packet, PacketHeader, PacketType, ParseResult, DATA_CHUNK_SIZE,
-};
+use crate::transport::beepish::proto::{Packet, PacketHeader, PacketType, ParseResult};
 
 /// Server connection idle timeout — Perl Server.pm:58, Connection.pm:131-135
 const DEFAULT_SERVER_TIMEOUT_SECS: u64 = 120;
@@ -23,13 +22,13 @@ struct IncomingRequest {
 }
 
 /// Writer half, boxed for testability (allows in-memory streams in tests).
-type ServerWriter = Arc<Mutex<Box<dyn AsyncWrite + Unpin + Send>>>;
+pub(crate) type ServerWriter = Arc<Mutex<Box<dyn AsyncWrite + Unpin + Send>>>;
 
 /// Tracks bytes sent/acknowledged for outgoing replies (D5 flow control).
 #[derive(Debug, Default)]
-struct OutgoingReplyState {
-    sent: u64,
-    acknowledged: u64,
+pub(crate) struct OutgoingReplyState {
+    pub(crate) sent: u64,
+    pub(crate) acknowledged: u64,
 }
 
 /// Handle a single server connection: read packets, dispatch requests, send replies.
@@ -255,221 +254,4 @@ async fn dispatch_and_reply(
     };
 
     send_reply(reply, request_id, next_outgoing_msg_no, outgoing, writer).await;
-}
-
-async fn send_reply(
-    reply: ScampReply,
-    request_id: FlexInt,
-    next_outgoing_msg_no: &AtomicU64,
-    outgoing: &mut HashMap<u64, OutgoingReplyState>,
-    writer: &ServerWriter,
-) {
-    let reply_msg_no = next_outgoing_msg_no.fetch_add(1, Ordering::Relaxed);
-    let reply_header = PacketHeader {
-        action: String::new(),
-        envelope: EnvelopeFormat::Json,
-        error: reply.error,
-        error_code: reply.error_code,
-        error_data: None,
-        request_id,
-        client_id: FlexInt(0),
-        ticket: String::new(),
-        identifying_token: String::new(),
-        message_type: MessageType::Reply,
-        version: 0,
-    };
-
-    outgoing.insert(reply_msg_no, OutgoingReplyState::default());
-
-    let mut w = writer.lock().await;
-    let header_pkt = Packet {
-        packet_type: PacketType::Header,
-        msg_no: reply_msg_no,
-        packet_header: Some(reply_header),
-        body: vec![],
-    };
-    if let Err(e) = header_pkt.write(&mut *w).await {
-        log::error!("Failed to write reply HEADER: {}", e);
-        outgoing.remove(&reply_msg_no);
-        return;
-    }
-
-    let mut offset = 0;
-    while offset < reply.body.len() {
-        let end = (offset + DATA_CHUNK_SIZE).min(reply.body.len());
-        let chunk_len = (end - offset) as u64;
-        let data_pkt = Packet {
-            packet_type: PacketType::Data,
-            msg_no: reply_msg_no,
-            packet_header: None,
-            body: reply.body[offset..end].to_vec(),
-        };
-        if let Err(e) = data_pkt.write(&mut *w).await {
-            log::error!("Failed to write reply DATA: {}", e);
-            outgoing.remove(&reply_msg_no);
-            return;
-        }
-        if let Some(state) = outgoing.get_mut(&reply_msg_no) {
-            state.sent += chunk_len;
-        }
-        offset = end;
-    }
-
-    let eof_pkt = Packet {
-        packet_type: PacketType::Eof,
-        msg_no: reply_msg_no,
-        packet_header: None,
-        body: vec![],
-    };
-    if let Err(e) = eof_pkt.write(&mut *w).await {
-        log::error!("Failed to write reply EOF: {}", e);
-    }
-    if let Err(e) = w.flush().await {
-        log::error!("Reply flush failed: {}", e);
-    }
-
-    outgoing.remove(&reply_msg_no);
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::test_helpers::{echo_actions, parse_all_packets, write_request};
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
-
-    /// Send a single request and collect all response packets.
-    async fn roundtrip(actions: Arc<HashMap<String, RegisteredAction>>, action: &str, version: i32, body: &[u8]) -> Vec<Packet> {
-        let (client, server) = tokio::io::duplex(65536);
-        let server_handle = tokio::spawn(handle_connection(server, actions, None));
-        let (mut client_read, mut client_write) = tokio::io::split(client);
-
-        write_request(&mut client_write, 0, action, version, 1, body).await;
-        client_write.shutdown().await.unwrap();
-
-        let mut response_data = Vec::new();
-        client_read.read_to_end(&mut response_data).await.unwrap();
-        server_handle.await.unwrap();
-        parse_all_packets(&response_data)
-    }
-
-    #[tokio::test]
-    async fn test_echo_roundtrip() {
-        let packets = roundtrip(echo_actions(), "echo", 1, b"hello world").await;
-
-        let reply_hdr = packets
-            .iter()
-            .find(|p| p.packet_type == PacketType::Header)
-            .expect("no reply HEADER");
-        let header = reply_hdr.packet_header.as_ref().unwrap();
-        assert_eq!(header.message_type, MessageType::Reply);
-        assert_eq!(header.request_id.0, 1);
-        assert!(header.error.is_none());
-
-        let reply_body: Vec<u8> = packets
-            .iter()
-            .filter(|p| p.packet_type == PacketType::Data && p.msg_no == reply_hdr.msg_no)
-            .flat_map(|p| p.body.iter().cloned())
-            .collect();
-        assert_eq!(reply_body, b"hello world");
-
-        assert!(packets
-            .iter()
-            .any(|p| p.packet_type == PacketType::Eof && p.msg_no == reply_hdr.msg_no));
-    }
-
-    #[tokio::test]
-    async fn test_error_for_unknown_action() {
-        let packets = roundtrip(echo_actions(), "nonexistent", 1, b"{}").await;
-
-        let reply_hdr = packets
-            .iter()
-            .find(|p| p.packet_type == PacketType::Header)
-            .expect("no reply HEADER");
-        let header = reply_hdr.packet_header.as_ref().unwrap();
-        assert_eq!(header.message_type, MessageType::Reply);
-        assert!(header.error.as_ref().unwrap().contains("No such action"));
-        assert_eq!(header.error_code.as_deref(), Some("not_found"));
-    }
-
-    #[tokio::test]
-    async fn test_empty_body_request() {
-        let packets = roundtrip(echo_actions(), "echo", 1, b"").await;
-
-        let reply_hdr = packets
-            .iter()
-            .find(|p| p.packet_type == PacketType::Header)
-            .expect("no reply HEADER");
-        assert!(reply_hdr.packet_header.as_ref().unwrap().error.is_none());
-
-        let data_count = packets
-            .iter()
-            .filter(|p| p.packet_type == PacketType::Data && p.msg_no == reply_hdr.msg_no)
-            .count();
-        assert_eq!(data_count, 0, "echo of empty body should produce no DATA");
-    }
-
-    #[tokio::test]
-    async fn test_ping_pong() {
-        let (client, server) = tokio::io::duplex(65536);
-        let server_handle = tokio::spawn(handle_connection(server, echo_actions(), None));
-        let (mut client_read, mut client_write) = tokio::io::split(client);
-
-        Packet {
-            packet_type: PacketType::Ping,
-            msg_no: 0,
-            packet_header: None,
-            body: vec![],
-        }
-        .write(&mut client_write)
-        .await
-        .unwrap();
-        client_write.shutdown().await.unwrap();
-
-        let mut response_data = Vec::new();
-        client_read.read_to_end(&mut response_data).await.unwrap();
-        server_handle.await.unwrap();
-
-        let packets = parse_all_packets(&response_data);
-        assert_eq!(packets.len(), 1);
-        assert_eq!(packets[0].packet_type, PacketType::Pong);
-        assert_eq!(packets[0].msg_no, 0);
-    }
-
-    #[tokio::test]
-    async fn test_ack_sent_on_data() {
-        let packets = roundtrip(echo_actions(), "echo", 1, b"hello").await;
-
-        let ack = packets
-            .iter()
-            .find(|p| p.packet_type == PacketType::Ack && p.msg_no == 0)
-            .expect("no ACK for request DATA");
-        let ack_val: usize = String::from_utf8_lossy(&ack.body).parse().unwrap();
-        assert_eq!(ack_val, 5, "ACK should be cumulative bytes (5 for 'hello')");
-    }
-
-    #[tokio::test]
-    async fn test_multi_chunk_roundtrip() {
-        let body = vec![0x42u8; 5000];
-        let packets = roundtrip(echo_actions(), "echo", 1, &body).await;
-
-        let reply_hdr = packets
-            .iter()
-            .find(|p| p.packet_type == PacketType::Header)
-            .expect("no reply HEADER");
-
-        let reply_body: Vec<u8> = packets
-            .iter()
-            .filter(|p| p.packet_type == PacketType::Data && p.msg_no == reply_hdr.msg_no)
-            .flat_map(|p| p.body.iter().cloned())
-            .collect();
-        assert_eq!(reply_body.len(), 5000);
-        assert_eq!(reply_body, body);
-
-        // 5000 / 2048 = 3 chunks (2048 + 2048 + 904)
-        let data_count = packets
-            .iter()
-            .filter(|p| p.packet_type == PacketType::Data && p.msg_no == reply_hdr.msg_no)
-            .count();
-        assert_eq!(data_count, 3);
-    }
 }
